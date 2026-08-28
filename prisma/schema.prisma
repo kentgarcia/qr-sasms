@@ -190,6 +190,12 @@ model Faq {
   createdAt DateTime @default(now())
 }
 
+model FaqCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
+
 model EventRequest {
   id           String   @id
   sn           String

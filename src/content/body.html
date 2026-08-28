@@ -6,20 +6,15 @@
 
 
 <nav id="mainNav" class="glass-nav">
-  <div style="max-width:1200px;margin:0 auto;padding:0 20px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;">
-      <div style="display:flex;align-items:center;gap:80px;">
-        <div style="width:40px;height:100px;flex-shrink:0;"><img src="/pup-seal.jpg" alt="PUP San Pedro Seal" style="width:85px;height:85px;border-radius:50%;object-fit:cover;object-position:center;display:block;filter:drop-shadow(0 1px 4px rgba(0,0,0,.4));"></div>
-        <div>
-          <div style="font-size:30px;font-weight:900;letter-spacing:.1em;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.25);">QR-SASMS</div>
-          <div style="font-size:15px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#F5C518;">PUP San Pedro &middot; Student Services Office</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div id="desktopNavLinks"></div>
-        <button class="hamburger-btn btn-ghost" onclick="toggleMobileMenu()" style="padding:8px 12px;align-items:center;background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.2);color:rgba(255,220,220,.9);" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+  <div class="sidebar-shell">
+    <div class="sidebar-brand">
+      <img src="/pup-seal.jpg" alt="PUP San Pedro Seal">
+      <div>
+        <div class="sidebar-brand-title">QR-SASMS</div>
+        <div class="sidebar-brand-subtitle">PUP San Pedro<br>Student Services Office</div>
       </div>
     </div>
+    <div id="desktopNavLinks" class="sidebar-links"></div>
   </div>
 </nav>
 <div id="mobileMenuBackdrop" onclick="closeMobileMenu()"></div>
@@ -37,10 +32,10 @@
  <div id="authLoadingOverlay" style="position:fixed;inset:0;background:#1a0505;z-index:99999;display:flex;align-items:center;justify-content:center;">
   <div style="color:#F5C518;font-size:14px;font-weight:700;">Loading&hellip;</div>
 </div>
-<div id="page-login" class="page auth-page active" style="align-items:center;justify-content:center;min-height:100vh;padding:24px;position:relative;overflow:hidden;">
+<div id="page-login" class="page auth-page active" style="align-items:center;justify-content:flex-start;min-height:100vh;padding:24px;position:relative;overflow:hidden;">
   
-  <div aria-hidden="true" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:800px;height:800px;opacity:.13;pointer-events:none;z-index:0;"><img src="/pup-seal.jpg" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;object-position:center;display:block;"></div>
-  <div style="width:100%;max-width:420px;position:relative;z-index:1;">
+  <div class="auth-visual" aria-hidden="true"><img src="/pup-seal.jpg" alt=""></div>
+  <div class="auth-panel">
     <div class="modal-box">
       <div style="text-align:center;margin-bottom:28px;">
         
@@ -89,23 +84,12 @@
   </div>
 </div>
 
-<div id="page-register" class="page auth-page" style="align-items:center;justify-content:center;min-height:100vh;padding:24px;">
-  <div style="width:100%;max-width:480px;">
+<div id="page-register" class="page auth-page" style="align-items:center;justify-content:flex-start;min-height:100vh;padding:24px;">
+  <div class="auth-panel">
     <div class="modal-box" style="max-width:480px;">
       <div style="text-align:center;margin-bottom:22px;">
         <div style="font-size:20px;font-weight:900;color:#1a0505;">Create Account</div>
         <div style="font-size:13px;color:rgba(30,5,5,.75);margin-top:4px;">Register as a PUP San Pedro student</div>
-      </div>
-      <div style="display:flex;align-items:center;margin-bottom:24px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="width:30px;height:30px;border-radius:50%;background:rgba(139,26,26,.7);border:1px solid rgba(245,197,24,.4);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#F5C518;">1</div>
-          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#F5C518;">Identity</span>
-        </div>
-        <div style="flex:1;height:1px;background:rgba(255,255,255,.1);margin:0 12px;"></div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:rgba(30,5,5,.55);">2</div>
-          <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:rgba(30,5,5,.55);">Account Setup</span>
-        </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -149,7 +133,10 @@
         <div class="page-title">My Dashboard</div>
         <div class="page-sub">Welcome back, <span style="display:inline-block;color:#F5C518;background:#8B1A1A;border:1px solid rgba(255,255,255,.72);border-radius:6px;padding:1px 6px;font-weight:800;line-height:1.25;text-shadow:0 1px 1px rgba(0,0,0,.45);box-shadow:0 2px 5px rgba(90,10,10,.24);" id="studentWelcomeName">Juan dela Cruz</span></div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;"><button onclick="goTo('page-request')" class="btn-gold"><i class="fa-solid fa-plus" style="margin-right:6px;"></i>New Request</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button id="studentBellToggle" onclick="toggleBell()" class="btn-ghost" style="position:relative;padding:10px 13px;font-size:13px;" aria-label="Notifications" title="Notifications"><i class="fa-solid fa-bell"></i><span id="studentBellBadge" class="notification-badge" style="display:none;position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;border-radius:99px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;align-items:center;justify-content:center;padding:0 3px;line-height:17px;">0</span></button>
+        <button onclick="goTo('page-request')" class="btn-gold"><i class="fa-solid fa-plus" style="margin-right:6px;"></i>New Request</button>
+      </div>
     </div>
     
     <div class="grid-4" style="margin-bottom:20px;" id="studentKPI">
@@ -344,6 +331,7 @@
         <div class="page-sub">SSO Staff &middot; <span style="font-weight:700;color:rgba(20,4,4,.85);">Monday, June 22, 2026</span></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button id="adminBellToggle" onclick="toggleBell()" class="btn-ghost" style="position:relative;padding:10px 13px;font-size:13px;" aria-label="Notifications" title="Notifications"><i class="fa-solid fa-bell"></i><span id="adminBellBadge" class="notification-badge" style="display:none;position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;border-radius:99px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;align-items:center;justify-content:center;padding:0 3px;line-height:17px;">0</span></button>
         <button onclick="goTo('page-scanner')" class="btn-maroon" style="padding:10px 18px;font-size:13px;"><i class="fa-solid fa-qrcode" style="margin-right:6px;"></i>Open Scanner</button>
       </div>
     </div>
@@ -469,7 +457,7 @@
         <div><div style="font-size:17px;font-weight:900;color:#1a0505;"><i class="fa-solid fa-calendar-days" style="color:#8B1A1A;margin-right:7px;"></i>All Appointments Today</div><div id="allQueueModalMeta" style="font-size:11px;color:rgba(30,5,5,.58);margin-top:3px;"></div></div>
         <button onclick="closeAllAppointments()" style="background:none;border:none;color:rgba(30,5,5,.75);cursor:pointer;font-size:20px;"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div id="allQueueModalList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div id="allQueueModalList"></div>
     </div>
   </div>
 

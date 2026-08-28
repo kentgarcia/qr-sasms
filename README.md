@@ -7,7 +7,7 @@ portal. The original frontend's visual design and markup are untouched
 block) — only the JavaScript behind it was rewired from
 localStorage-mocked data to real API calls (`public/app.js`).
 
-## What's real here
+ 
 
 - **PostgreSQL via Prisma** — every entity (users, document requests,
   appointments/queue, referrals, ID applications, bulletins, help desk

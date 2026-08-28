@@ -63,6 +63,7 @@ let adminDashboardRefreshInFlight = false;
 let PENDING_ACCOUNTS = []; // accounts awaiting admin approval
 let MASTERLIST_COUNT = 0;
 let MOD = { referrals: [], idapps: [], bulletins: [], tickets: [], faqs: [], events2: [], complaints: [], forms: [], memos: [] };
+let faqCategories = [];
 let ADMIN_ACTIVITY = null;
 const REQUESTS_PER_PAGE = 5;
 let adminRequestPage = 1;
@@ -80,6 +81,7 @@ async function loadEmailStatus() { const r = await api("/api/emails/status"); EM
 async function loadNotifs() { const r = await api("/api/notifications"); NOTIFS = r.ok ? r.data : []; }
 async function loadPendingAccounts() { const r = await api("/api/users/pending"); PENDING_ACCOUNTS = r.ok ? r.data : []; }
 async function loadModule(key) { const r = await api(`/api/modules/${key}`); MOD[key] = r.ok ? r.data : []; }
+async function loadFaqCategories() { const r = await api("/api/modules/faq-categories"); faqCategories = r.ok ? r.data : []; }
 async function loadMyOrganizations() { const r = await api("/api/organizations/mine"); MY_ORGANIZATIONS = r.ok ? r.data : []; }
 
 async function refreshMasterlistStatus() {
@@ -320,7 +322,7 @@ async function goTo(pageId) {
   if (pageId === "page-idapp") { await loadModule("idapps"); renderIdApp(); }
   if (pageId === "page-bulletin") { await loadModule("bulletins"); renderBulletin(); }
   if (pageId === "page-helpdesk") { await Promise.all([loadModule("tickets"), loadModule("faqs")]); renderHelpdesk(); }
-  if (pageId === "page-faq") { await loadModule("faqs"); renderFaq(); }
+  if (pageId === "page-faq") { await Promise.all([loadModule("faqs"), loadFaqCategories()]); renderFaq(); }
   if (pageId === "page-events2") { await Promise.all([loadModule("events2"), isAdmin() ? Promise.resolve() : loadMyOrganizations()]); renderEvents2(); }
   if (pageId === "page-complaint") { await loadModule("complaints"); renderComplaint(); }
   if (pageId === "page-forms") { await loadModule("forms"); renderForms(); }
@@ -347,14 +349,12 @@ async function updateNav(pageId) {
   };
   const iconMap = { student: "fa-user-graduate", admin: "fa-shield-halved", scanner: "fa-qrcode" };
   const items = links[role] || links.student;
-  const ctrl = `<div style="display:flex;align-items:center;gap:6px;">
-    <button id="bellToggle" onclick="toggleBell()" class="nav-link" style="position:relative;padding:10px 20px;" aria-label="Notifications"><i class="fa-solid fa-bell"></i><span id="bellBadge" style="display:none;position:absolute;top:2px;right:3px;min-width:15px;height:15px;border-radius:99px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;align-items:center;justify-content:center;padding:0 3px;line-height:15px;">0</span></button>
-    <div style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);border-top-color:rgba(255,220,220,.22);border-radius:10px;padding:5px 10px;">
-      <div style="width:22px;height:22px;border-radius:50%;background:rgba(245,197,24,.15);border:1px solid rgba(245,197,24,.3);display:flex;align-items:center;justify-content:center;"><i class="fa-solid ${iconMap[role]}" style="font-size:10px;color:#F5C518;"></i></div>
-      <span style="font-size:12px;font-weight:700;color:rgba(255,220,220,.95);">${session.name.split(" ")[0]}</span>
-    </div>
-  </div>`;
-  document.getElementById("desktopNavLinks").innerHTML = ctrl;
+  const navItems = items.map((l) => `<button onclick="goTo('${l.page}')" class="nav-link ${pageId === l.page ? "active" : ""}"><i class="fa-solid ${l.icon}"></i><span>${l.label}</span></button>`).join("");
+  const ctrl = `<div class="sidebar-divider"></div>
+    <button onclick="openSettingsMenu()" class="nav-link"><i class="fa-solid fa-gear"></i><span>Settings</span></button>
+    <div class="sidebar-user"><div class="sidebar-user-icon"><i class="fa-solid ${iconMap[role]}"></i></div><span>${session.name.split(" ")[0]}</span></div>
+    <button onclick="signOut()" class="nav-link sidebar-logout"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button>`;
+  document.getElementById("desktopNavLinks").innerHTML = navItems + ctrl;
   updateBellBadge();
   document.getElementById("mobileMenuLinks").innerHTML =
     items.map((l) => `<button onclick="goTo('${l.page}');closeMobileMenu();" class="nav-link" style="justify-content:flex-start;"><i class="fa-solid ${l.icon}" style="font-size:11px;color:#F5C518;"></i>${l.label}</button>`).join("") +
@@ -886,9 +886,16 @@ function renderQueue() {
   servedPanel.style.display = served.length ? "block" : "none";
 }
 
+const ALL_APPOINTMENTS_PAGE_SIZE = 8;
+let allAppointmentsView = "waiting";
+const allAppointmentsPages = { waiting: 1, served: 1 };
+
 function viewAllAppointments() {
   const modal = document.getElementById("allQueueModal");
   if (modal && modal.parentElement !== document.body) document.body.appendChild(modal);
+  allAppointmentsView = "waiting";
+  allAppointmentsPages.waiting = 1;
+  allAppointmentsPages.served = 1;
   renderAllAppointments();
   modal?.classList.add("open");
 }
@@ -897,14 +904,31 @@ function closeAllAppointments() {
   document.getElementById("allQueueModal").classList.remove("open");
 }
 
+function setAllAppointmentsView(view) {
+  if (!["waiting", "served"].includes(view)) return;
+  allAppointmentsView = view;
+  renderAllAppointments();
+}
+
+function changeAllAppointmentsPage(delta) {
+  allAppointmentsPages[allAppointmentsView] += delta;
+  renderAllAppointments();
+}
+
 function renderAllAppointments() {
   const modalList = document.getElementById("allQueueModalList");
   const modalMeta = document.getElementById("allQueueModalMeta");
   if (!modalList || !modalMeta) return;
-  const ordered = [...queueData.filter((q) => !q.served), ...queueData.filter((q) => q.served)];
-  const servedCount = queueData.filter((q) => q.served).length;
-  modalMeta.textContent = `${queueData.length} appointments · ${servedCount} served · ${queueData.length - servedCount} waiting`;
-  modalList.innerHTML = ordered.length ? ordered.map((q) => `
+  const waiting = queueData.filter((q) => !q.served);
+  const served = queueData.filter((q) => q.served);
+  const activeList = allAppointmentsView === "served" ? served : waiting;
+  const totalPages = Math.max(1, Math.ceil(activeList.length / ALL_APPOINTMENTS_PAGE_SIZE));
+  allAppointmentsPages[allAppointmentsView] = Math.min(Math.max(1, allAppointmentsPages[allAppointmentsView]), totalPages);
+  const currentPage = allAppointmentsPages[allAppointmentsView];
+  const start = (currentPage - 1) * ALL_APPOINTMENTS_PAGE_SIZE;
+  const pageItems = activeList.slice(start, start + ALL_APPOINTMENTS_PAGE_SIZE);
+  modalMeta.textContent = `${queueData.length} appointments · ${served.length} served · ${waiting.length} waiting`;
+  const item = (q) => `
     <div class="queue-item${q.served ? "" : " qi-active"}">
       <div>
         <div style="font-size:16px;font-weight:900;color:${q.served ? "rgba(30,5,5,.52)" : "#1a0505"};">${q.q}</div>
@@ -913,7 +937,24 @@ function renderAllAppointments() {
       ${q.served
         ? '<span style="font-size:12px;font-weight:800;color:#15803d;"><i class="fa-solid fa-check-double" style="margin-right:4px;"></i>Served</span>'
         : `<button onclick="serveQueue('${q.q}')" class="btn-maroon" style="padding:7px 15px;font-size:12px;border-radius:10px;">Serve</button>`}
-    </div>`).join("") : '<div class="empty-state" style="padding:24px;">No appointments today.</div>';
+    </div>`;
+  const shownStart = activeList.length ? start + 1 : 0;
+  const shownEnd = Math.min(start + ALL_APPOINTMENTS_PAGE_SIZE, activeList.length);
+  modalList.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+      <button onclick="setAllAppointmentsView('waiting')" class="${allAppointmentsView === "waiting" ? "btn-maroon" : "btn-ghost"}" style="padding:9px 12px;font-size:12px;"><i class="fa-solid fa-hourglass-half" style="margin-right:5px;"></i>Waiting (${waiting.length})</button>
+      <button onclick="setAllAppointmentsView('served')" class="${allAppointmentsView === "served" ? "btn-maroon" : "btn-ghost"}" style="padding:9px 12px;font-size:12px;"><i class="fa-solid fa-check-double" style="margin-right:5px;"></i>Served (${served.length})</button>
+    </div>
+    <div style="font-size:10px;font-weight:800;letter-spacing:.07em;color:rgba(30,5,5,.62);text-transform:uppercase;margin:0 0 7px;">${allAppointmentsView === "served" ? "Served appointments" : "Waiting to be served"}</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">${pageItems.length ? pageItems.map(item).join("") : `<div class="empty-state" style="padding:24px;">No ${allAppointmentsView} appointments.</div>`}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(139,26,26,.12);">
+      <span style="font-size:11px;color:rgba(30,5,5,.58);">Showing ${shownStart}–${shownEnd} of ${activeList.length}</span>
+      <div style="display:flex;align-items:center;gap:7px;">
+        <button onclick="changeAllAppointmentsPage(-1)" class="btn-ghost" style="padding:6px 10px;font-size:10px;" ${currentPage <= 1 ? "disabled" : ""}><i class="fa-solid fa-chevron-left"></i> Previous</button>
+        <b style="font-size:11px;color:#8B1A1A;">${currentPage} / ${totalPages}</b>
+        <button onclick="changeAllAppointmentsPage(1)" class="btn-ghost" style="padding:6px 10px;font-size:10px;" ${currentPage >= totalPages ? "disabled" : ""}>Next <i class="fa-solid fa-chevron-right"></i></button>
+      </div>
+    </div>`;
 }
 
 async function serveQueue(qNum) {
@@ -1988,21 +2029,23 @@ async function hdClose(id) {
 
 
 let faqQuery = "";
+let faqCategoryForEntry = "";
 function renderFaq() {
   const el = document.getElementById("faqBody");
   const q = faqQuery.toLowerCase();
   const list = MOD.faqs.filter((f) => !q || f.q.toLowerCase().includes(q) || f.a.toLowerCase().includes(q) || f.cat.toLowerCase().includes(q));
-  const cats = [...new Set(list.map((f) => f.cat))];
+  const categoryMap = new Map(faqCategories.map((category) => [category.name, category]));
+  MOD.faqs.forEach((faq) => { if (!categoryMap.has(faq.cat)) categoryMap.set(faq.cat, { id: "", name: faq.cat }); });
+  const allCategories = [...categoryMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const cats = q ? allCategories.filter((category) => list.some((faq) => faq.cat === category.name)) : allCategories;
   let adminForm = "";
   if (isAdmin()) {
     adminForm = `
       <div class="glass-card" style="padding:16px;margin-bottom:14px;">
-        <div style="font-size:13px;font-weight:800;color:#1a0505;margin-bottom:10px;"><i class="fa-solid fa-plus" style="color:#8B1A1A;margin-right:6px;"></i>Add FAQ</div>
-        <div style="display:grid;gap:8px;">
-          <input id="faqCat" class="glass-input" placeholder="Category (e.g., Document Requests)">
-          <input id="faqQ" class="glass-input" placeholder="Question">
-          <textarea id="faqA" class="glass-input" rows="2" placeholder="Answer"></textarea>
-          <button onclick="faqAdd()" class="btn-gold" style="padding:10px;">Add FAQ</button>
+        <div style="font-size:13px;font-weight:800;color:#1a0505;margin-bottom:10px;"><i class="fa-solid fa-folder-plus" style="color:#8B1A1A;margin-right:6px;"></i>Add FAQ Category</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input id="faqCategoryName" class="glass-input" style="flex:1;min-width:220px;" placeholder="Category name (e.g., Document Requests)">
+          <button onclick="faqCategoryAdd()" class="btn-gold" style="padding:10px 16px;">Add Category</button>
         </div>
       </div>`;
   }
@@ -2011,27 +2054,54 @@ function renderFaq() {
       <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:rgba(30,5,5,.4);font-size:12px;"></i>
       <input class="glass-input" style="padding-left:34px;" placeholder="Search FAQs…" value="${esc(faqQuery)}" oninput="faqQuery=this.value;renderFaq();this.focus();this.setSelectionRange(this.value.length,this.value.length);">
     </div>
-    ${cats.length ? cats.map((c) => `
-      <div style="font-size:12px;font-weight:800;color:#8B1A1A;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px;">${esc(c)}</div>
-      ${list.filter((f) => f.cat === c).map((f) => `
+    ${cats.length ? cats.map((category) => { const c = category.name; return `
+      <div class="glass-card" style="padding:14px;margin:14px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:${list.some((f) => f.cat === c) ? "10px" : "0"};">
+          <div style="font-size:12px;font-weight:800;color:#8B1A1A;text-transform:uppercase;letter-spacing:.05em;">${esc(c)}</div>
+          ${isAdmin() ? `<div style="display:flex;gap:6px;align-items:center;"><button onclick="openFaqEntryForm('${esc(c).replace(/'/g, "\\'")}')" class="btn-maroon" style="padding:7px 11px;font-size:10px;"><i class="fa-solid fa-plus" style="margin-right:4px;"></i>Add FAQ</button>${category.id ? `<button onclick="faqCategoryDelete('${category.id}','${esc(c).replace(/'/g, "\\'")}')" class="btn-ghost" style="padding:7px 9px;font-size:10px;color:#b91c1c;">Delete Category</button>` : ""}</div>` : ""}
+        </div>
+        ${list.filter((f) => f.cat === c).length ? list.filter((f) => f.cat === c).map((f) => `
         <details class="glass-card" style="padding:12px 14px;margin-bottom:8px;">
           <summary style="font-size:13px;font-weight:700;color:#1a0505;cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;">
             <span>${esc(f.q)}</span>
             ${isAdmin() ? `<button onclick="event.preventDefault();faqDelete('${f.id}')" class="btn-ghost" style="padding:5px 9px;font-size:10px;color:#b91c1c;">Delete</button>` : ""}
           </summary>
           <div style="font-size:12px;color:rgba(30,5,5,.8);margin-top:8px;white-space:pre-wrap;">${esc(f.a)}</div>
-        </details>`).join("")}`).join("") : emptyState("No FAQs match your search.")}
+        </details>`).join("") : `<div style="font-size:12px;color:rgba(30,5,5,.6);">No FAQs in this category yet. Use Add FAQ to create the first one.</div>`}
+      </div>`; }).join("") : emptyState("No FAQ categories yet.")}
   `;
 }
+async function faqCategoryAdd() {
+  const input = document.getElementById("faqCategoryName");
+  const name = input?.value.trim();
+  if (!name) { showToast("⚠️ Enter a category name first.", "rgba(180,130,0,.85)"); return; }
+  const { ok, error } = await api("/api/modules/faq-categories", { method: "POST", body: { name } });
+  if (!ok) { showToast(`❌ ${error || "Could not add FAQ category."}`, "rgba(155,22,22,.85)"); return; }
+  showToast("✅ FAQ category added.");
+  await loadFaqCategories(); renderFaq();
+}
+async function faqCategoryDelete(id, name) {
+  if (!confirm(`Delete the '${name}' category and all FAQs inside it? This cannot be undone.`)) return;
+  const { ok, error, data } = await api(`/api/modules/faq-categories/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!ok) { showToast(`❌ ${error || "Could not delete FAQ category."}`, "rgba(155,22,22,.85)"); return; }
+  showToast(`✅ Category deleted${data?.removedFaqs ? ` with ${data.removedFaqs} FAQ(s)` : ""}.`);
+  await Promise.all([loadModule("faqs"), loadFaqCategories()]); renderFaq();
+}
+function openFaqEntryForm(category) {
+  faqCategoryForEntry = category;
+  openAppModal({ title: "Add FAQ", subtitle: `Category: ${category}`, icon: "fa-circle-question", content: `<div style="display:grid;gap:10px;"><input id="faqQ" class="glass-input" placeholder="Question"><textarea id="faqA" class="glass-input" rows="4" placeholder="Answer"></textarea></div><div class="app-modal-actions"><button class="btn-soft" onclick="closeAppModal()">Cancel</button><button onclick="faqAdd()" class="btn-gold">Add FAQ</button></div>` });
+}
 async function faqAdd() {
-  const c = document.getElementById("faqCat").value.trim() || "General";
-  const q = document.getElementById("faqQ").value.trim();
-  const a = document.getElementById("faqA").value.trim();
+  const c = faqCategoryForEntry;
+  const q = document.getElementById("faqQ")?.value.trim();
+  const a = document.getElementById("faqA")?.value.trim();
   if (!q || !a) { showToast("⚠️ Question and answer are required.", "rgba(180,130,0,.85)"); return; }
   const { ok, error } = await api("/api/modules/faqs", { method: "POST", body: { cat: c, q, a } });
   if (!ok) { showToast(`❌ ${error || "Could not add FAQ."}`, "rgba(155,22,22,.85)"); return; }
   showToast("✅ FAQ added.");
-  await loadModule("faqs"); renderFaq();
+  closeAppModal();
+  faqCategoryForEntry = "";
+  await Promise.all([loadModule("faqs"), loadFaqCategories()]); renderFaq();
 }
 async function faqDelete(id) {
   if (!confirm("Delete this FAQ?")) return;
@@ -2496,11 +2566,11 @@ async function verifyRef() {
 
 function myNotifs() { return NOTIFS; } // server already scopes this to the caller
 function updateBellBadge() {
-  const b = document.getElementById("bellBadge");
-  if (!b) return;
   const unread = myNotifs().filter((n) => !n.read).length;
-  if (unread > 0) { b.textContent = unread > 9 ? "9+" : unread; b.style.display = "flex"; }
-  else b.style.display = "none";
+  document.querySelectorAll(".notification-badge").forEach((b) => {
+    if (unread > 0) { b.textContent = unread > 9 ? "9+" : unread; b.style.display = "flex"; }
+    else b.style.display = "none";
+  });
 }
 function playNotificationSound() {
   try {
@@ -2544,6 +2614,7 @@ function showIncomingNotifications(items) {
   const panel = document.getElementById("bellPanel");
   if (!panel) return;
   renderBellPanel();
+  positionBellPanel();
   panel.style.display = "block";
   window.setTimeout(() => {
     if (panel.style.display === "block") panel.style.display = "none";
@@ -2606,7 +2677,19 @@ async function toggleBell() {
   if (p.style.display === "block") { p.style.display = "none"; return; }
   await loadNotifs();
   renderBellPanel();
+  positionBellPanel();
   p.style.display = "block";
+}
+function positionBellPanel() {
+  const panel = document.getElementById("bellPanel");
+  const toggle = document.querySelector(".page.active #adminBellToggle") || document.querySelector(".page.active #studentBellToggle") || document.getElementById("bellToggle");
+  if (!panel || !toggle) return;
+  const rect = toggle.getBoundingClientRect();
+  const panelWidth = Math.min(340, window.innerWidth * .92);
+  const left = Math.max(8, Math.min(rect.left, window.innerWidth - panelWidth - 8));
+  panel.style.left = `${left}px`;
+  panel.style.right = "auto";
+  panel.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 80)}px`;
 }
 function renderBellPanel() {
   const p = document.getElementById("bellPanel");
@@ -2748,7 +2831,7 @@ function mountVersionBadge() {
   mountVersionBadge();
   document.addEventListener("pointerdown", (event) => {
     const panel = document.getElementById("bellPanel");
-    const toggle = document.getElementById("bellToggle");
+    const toggle = document.querySelector(".page.active #adminBellToggle") || document.querySelector(".page.active #studentBellToggle");
     if (!panel || panel.style.display !== "block") return;
     if (!panel.contains(event.target) && !toggle?.contains(event.target)) panel.style.display = "none";
   });
