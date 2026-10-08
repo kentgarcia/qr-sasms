@@ -7,7 +7,7 @@ import "./globals.css";
 
 
 export const metadata: Metadata = {
-  title: "QR-SASMS — PUP San Pedro SSO",
+  title: "STARS — Student Transaction and Appointment Request System",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -21,11 +21,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           strategy="beforeInteractive"
         />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-        <Script
-          src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
-          strategy="beforeInteractive"
-        />
-        <Script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" strategy="beforeInteractive" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"

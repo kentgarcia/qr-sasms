@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
   const logs = await prisma.auditLog.findMany({ where: { msg: { startsWith: "FAQ_CHATBOT_QUERY:" } } });
   const counts = logs.reduce<Record<string, number>>((out, log) => { const key = log.msg.split(":")[1] || "unmatched"; out[key] = (out[key] || 0) + 1; return out; }, {});

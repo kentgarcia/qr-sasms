@@ -48,35 +48,6 @@ model MasterlistGroup {
   @@unique([schoolYear, course, year])
 }
 
-model DocumentRequest {
-  id           String   @id 
-  studentId    String
-  studentName  String
-  doc          String
-  docKey       String
-  purpose      String
-  copies       Int      @default(1)
-  notes        String   @default("")
-  status       String   @default("Pending") 
-  rejectReason String?
-  rejectedAt   String?
-  rejectedBy   String?
-  claimRef     String?  @unique 
-  
-  
-  claimToken       String?   @unique
-  claimTokenExpiry DateTime?
-  claimedAt    String?
-  claimedBy    String?
-  reuploadName String?
-  reuploadUrl  String?
-  signature    String?
-  createdAt    DateTime @default(now())
-
-  @@index([studentId])
-  @@index([status])
-}
-
 model QueueEntry {
   id        String   @id @default(uuid())
   code      String   @unique 
@@ -85,11 +56,57 @@ model QueueEntry {
   time      String
   dateLabel String
   served    Boolean  @default(false)
+  // Appointment-based system (see docs/appointment-system-spec.md).
+  // `served` is kept in sync with `status` for backward compatibility
+  // with existing clients: SERVED <=> served=true.
+  // Service keys: GENERAL (legacy), ID_NEW, ID_LOST, EVENT, AUTH, EXCUSE, PSYCH.
+  // Status values: BOOKED, RESCHEDULED, CHECKED_IN, SERVED, CANCELLED, NO_SHOW
+  // (plus legacy PENDING, treated as BOOKED).
+  serviceType    String    @default("GENERAL")
+  serviceRefId   String?
+  organizationId String?
+  notes          String    @default("")
+  status         String    @default("BOOKED")
+  dateISO        String    @default("")
+  slotStartAt    DateTime?
+  slotEndAt      DateTime?
+  cancelReason   String?
+  bookedBy       String?
+  rescheduleCount Int     @default(0)
+  purpose        String  @default("")
+  copies         Int     @default(1)
   createdAt DateTime @default(now())
 
   @@index([studentId])
   @@index([dateLabel, time])
-  @@unique([studentId, dateLabel])
+  // NOTE: one-active-appointment-per-student-per-date is enforced by the
+  // partial unique index in migration 20260926000000_appointment_services
+  // (active statuses only, so cancelled/no-show history never blocks rebooking).
+  @@index([status])
+  @@index([serviceType, status])
+  @@index([dateLabel, time, serviceType, status])
+}
+
+model ServiceSlotConfig {
+  id          String   @id @default(uuid())
+  service     String   @unique
+  durationMin Int      @default(10)
+  capacity    Int      @default(1)
+  weekdays    Int[]    @default([1, 2, 3, 4, 5])
+  active      Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}
+
+model SlotBlock {
+  id        String   @id @default(uuid())
+  dateLabel String
+  time      String?
+  service   String?
+  reason    String   @default("")
+  createdBy String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([dateLabel])
 }
 
 model AuditLog {
@@ -135,6 +152,10 @@ model Referral {
   status    String   @default("Pending")
   remarks   String   @default("")
   history   Json     @default("[]")
+  // Optional appointment chosen as part of the request (spec §4).
+  appointmentCode String?
+  appointmentDate String   @default("")
+  appointmentTime String   @default("")
   createdAt DateTime @default(now())
 
   @@index([sn])
@@ -152,9 +173,51 @@ model IdApplication {
   affidavitUrl  String?
   status        String   @default("Pending")
   remarks       String   @default("")
+  history       Json     @default("[]")
+  // Pickup leg (spec §2): admin schedules pickup when the ID is ready,
+  // student is notified, pickup completes the request.
+  pickupDate    String   @default("")
+  pickupTime    String   @default("")
+  pickupNote    String   @default("")
+  pickedUpAt    DateTime?
   createdAt     DateTime @default(now())
 
   @@index([sn])
+  @@index([status])
+}
+
+// Request-based + General Visit services (spec §§2,5).
+// Authentication, Excuse Slip and General Visit requests live here.
+// Auth/Excuse: request → review → processing → ready → pickup schedule → pickup → completed.
+// General Visit: request (+ schedule selected at submit) → review → confirmed → check-in → in progress → completed.
+model ServiceRequest {
+  id              String   @id
+  sn              String
+  name            String
+  service         String
+  subject         String   @default("")
+  details         String   @default("")
+  copies          Int      @default(1)
+  docName         String   @default("")
+  docUrl          String?
+  status          String   @default("Pending Review")
+  remarks         String   @default("")
+  history         Json     @default("[]")
+  // General Visit: schedule chosen as part of the request (spec §5).
+  appointmentCode String?
+  dateLabel       String   @default("")
+  time            String   @default("")
+  slotStartAt     DateTime?
+  // Pickup leg for Authentication / Excuse Slip (spec §2).
+  pickupDate      String   @default("")
+  pickupTime      String   @default("")
+  pickupNote      String   @default("")
+  pickedUpAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([sn])
+  @@index([service, status])
 }
 
 model Bulletin {
@@ -178,8 +241,61 @@ model Ticket {
   status    String   @default("Open") 
   msgs      Json     @default("[]")
   createdAt DateTime @default(now())
+  // Phase 0 (AI assistant spec): optional link to the chat session that
+  // produced this ticket. Set when a student escalates from the chatbot.
+  chatSessionId String?
+  chatSession   ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
 
   @@index([sn])
+}
+
+// Phase 0 (AI assistant + ticket escalation spec, docs/ai-assistant-ticket-escalation-spec.md).
+// Server-side chat persistence. v0 stores keyword-match answers; embeddings arrive in Phase 1.
+model ChatSession {
+  id        String   @id @default(uuid())
+  userId    String
+  studentId String
+  subject   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages  ChatMessage[]
+  tickets   Ticket[]
+  feedbacks ChatFeedback[]
+
+  @@index([studentId])
+}
+
+model ChatMessage {
+  id         String      @id @default(uuid())
+  sessionId  String
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role       String
+  text       String
+  faqId      String?
+  confidence String?
+  // Phase 2: provenance of SIS-data answers (e.g. "ticket:TKT-1",
+  // "appointment:APT-007"). Null for KB answers. Used by analytics.
+  dataSource String?
+  createdAt  DateTime @default(now())
+  feedback   ChatFeedback?
+
+  @@index([sessionId])
+}
+
+// Improvement spec F-2: per-answer 👍/👎. One row per assistant message;
+// facts stay on ChatMessage (immutable), votes live here for analytics.
+model ChatFeedback {
+  id        String      @id @default(uuid())
+  messageId String      @unique
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId String
+  value     Int
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([studentId])
 }
 
 model Faq {
@@ -188,12 +304,22 @@ model Faq {
   q         String
   a         String
   createdAt DateTime @default(now())
+  embedding FaqEmbedding?
 }
 
 model FaqCategory {
   id        String   @id @default(uuid())
   name      String   @unique
   createdAt DateTime @default(now())
+}
+
+// Phase 1 (AI assistant spec): 384-dim all-MiniLM-L6-v2 embedding per FAQ.
+// Written via raw SQL (see migration); Prisma sees an opaque column.
+model FaqEmbedding {
+  faqId     String   @id
+  faq       Faq      @relation(fields: [faqId], references: [id], onDelete: Cascade)
+  embedding Unsupported("vector(384)")?
+  updatedAt DateTime @updatedAt
 }
 
 model EventRequest {
@@ -215,6 +341,10 @@ model EventRequest {
   docUrl       String?
   status       String   @default("Pending")
   history      Json     @default("[]")
+  // Optional appointment chosen as part of the request (spec §§3-5).
+  appointmentCode String?
+  appointmentDate String   @default("")
+  appointmentTime String   @default("")
   createdAt    DateTime @default(now())
 
   @@index([sn])

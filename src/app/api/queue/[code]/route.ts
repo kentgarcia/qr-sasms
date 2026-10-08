@@ -12,7 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { code: stri
   const entry = await prisma.queueEntry.findUnique({ where: { code } });
   if (!entry) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const updated = await prisma.queueEntry.update({ where: { code }, data: { served: true } });
+  const updated = await prisma.queueEntry.update({ where: { code }, data: { served: true, status: "SERVED" } });
   await addAudit("INFO", `${code} — ${entry.name} served by ${auth.name}.`);
 
   return NextResponse.json({

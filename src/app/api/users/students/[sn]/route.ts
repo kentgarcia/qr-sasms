@@ -8,7 +8,7 @@ import { normSN } from "@/lib/format";
 
 
 export async function PATCH(req: NextRequest, { params }: { params: { sn: string } }) {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
 
   const sn = normSN(decodeURIComponent(params.sn));

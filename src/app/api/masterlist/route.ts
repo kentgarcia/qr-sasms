@@ -14,15 +14,31 @@ export async function GET(req: NextRequest) {
     const count = await prisma.masterlistEntry.count();
     return NextResponse.json({ count });
   }
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
   const rows = await prisma.masterlistEntry.findMany({ orderBy: { sn: "asc" } });
-  return NextResponse.json(rows);
+  // Link each masterlist entry to its registered student account (if any).
+  const sns = [...new Set(rows.map((r) => r.sn))];
+  const users = sns.length
+    ? await prisma.user.findMany({
+        where: { studentId: { in: sns } },
+        select: { studentId: true, name: true, email: true, active: true, approved: true },
+      })
+    : [];
+  const bySn = new Map(
+    users.map((u) => [(u.studentId || "").trim().toUpperCase(), u])
+  );
+  return NextResponse.json(
+    rows.map((r) => {
+      const account = bySn.get(r.sn.trim().toUpperCase()) ?? null;
+      return { ...r, account, registered: !!account };
+    })
+  );
 }
 
 
 export async function POST(req: NextRequest) {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
 
   const body = await req.json().catch(() => null);
@@ -50,7 +66,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(entry, { status: 201 });
 }
 export async function DELETE() {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
 
   const { count } = await prisma.masterlistEntry.deleteMany({});

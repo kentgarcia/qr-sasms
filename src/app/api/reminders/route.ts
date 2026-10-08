@@ -5,9 +5,9 @@ import { sendDueEmailReminders } from "@/lib/reminders";
 
 
 export async function POST() {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
   const { appointmentEmails, readyEmails } = await sendDueEmailReminders();
-  await addAudit("INFO", `Reminders sent by ${auth.name}: ${appointmentEmails} appointment, ${readyEmails} document-ready.`);
+  await addAudit("INFO", `Reminders sent by ${auth.name}: ${appointmentEmails} appointment.`);
   return NextResponse.json({ appointmentEmails, readyEmails });
 }

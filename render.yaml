@@ -1,9 +1,9 @@
 services:
   - type: web
     runtime: node
-    name: qr-sasms
+    name: stars
     plan: free
-    buildCommand: npm ci && npx prisma db push && npm run bootstrap:admin && npm run build
+    buildCommand: npm ci && npx prisma migrate deploy && npm run bootstrap:admin && npm run build
     startCommand: npm start
     healthCheckPath: /
     envVars:
@@ -11,8 +11,15 @@ services:
         value: 20.18.1
       - key: DATABASE_URL
         fromDatabase:
-          name: qr-sasms-db
+          name: stars-db
           property: connectionString
+      # Semantic FAQ matching needs pgvector on the database
+      # (Render Postgres: run CREATE EXTENSION IF NOT EXISTS vector; once).
+      # Without Ollama these stay unset and the chatbot runs in keyword mode.
+      - key: OLLAMA_BASE_URL
+        sync: false
+      - key: ASSISTANT_EMBED_MODEL
+        sync: false
       - key: AUTH_SECRET
         generateValue: true
       - key: NEXT_PUBLIC_APP_URL
@@ -39,7 +46,7 @@ services:
         value: SSO Admin
 
 databases:
-  - name: qr-sasms-db
+  - name: stars-db
     plan: free
-    databaseName: qrsasms
-    user: qrsasms
+    databaseName: stars
+    user: stars

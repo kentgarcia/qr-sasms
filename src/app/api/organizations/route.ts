@@ -4,7 +4,7 @@ import { requireSession, jsonError } from "@/lib/http";
 import { addAudit } from "@/lib/notify";
 
 export async function GET() {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
   const orgs = await prisma.organization.findMany({ include: { representatives: { orderBy: { createdAt: "desc" } } }, orderBy: { name: "asc" } });
   const studentIds = [...new Set(orgs.flatMap((org) => org.representatives.map((rep) => rep.studentId)))];

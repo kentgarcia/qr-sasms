@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
   const resetUrl = `${appUrl.replace(/\/$/, "")}/reset-password?token=${resetToken}`;
   const mailResult = await sendMail({
     to: user.email,
-    subject: "Password Reset Request - PUP San Pedro SSO",
-    text: `Hello ${user.name},\n\nYou requested a password reset for your PUP San Pedro SSO account. Click the link below to reset your password:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email.\n\nThis link expires in 1 hour.`,
+    subject: "Password Reset Request - STARS",
+    text: `Hello ${user.name},\n\nYou requested a password reset for your STARS account. Click the link below to reset your password:\n\n${resetUrl}\n\nIf you did not request this, please ignore this email.\n\nThis link expires in 1 hour.`,
   });  await prisma.emailLog.create({
     data: {
       to: user.email,

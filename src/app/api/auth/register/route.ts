@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     try {
       const mailResult = await sendMail({
         to: email,
-        subject: "Account Registration Pending - PUP San Pedro SSO",
+        subject: "Account Registration Pending - STARS",
         text: `Hello ${name}, your account has been successfully registered and is currently awaiting approval from the SSO Admin. We will notify you once it's approved.`,
       });
       await prisma.emailLog.create({

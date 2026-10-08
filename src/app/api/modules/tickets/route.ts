@@ -23,6 +23,18 @@ export async function POST(req: NextRequest) {
   const message = (body?.message || "").toString().trim();
   if (!subject || !message) return jsonError(400, "Subject and message are required.", "MISSING_FIELDS");
 
+  // Phase 0 (AI assistant spec): optional link to the chat session that
+  // produced this ticket. The session must belong to the caller.
+  const chatSessionIdRaw = (body?.chatSessionId || "").toString() || null;
+  let chatSessionId: string | null = null;
+  if (chatSessionIdRaw) {
+    const chat = await prisma.chatSession.findFirst({
+      where: { id: chatSessionIdRaw, studentId: auth.studentId || "" },
+    });
+    if (!chat) return jsonError(404, "Chat session not found.", "SESSION_NOT_FOUND");
+    chatSessionId = chat.id;
+  }
+
   const created = await prisma.ticket.create({
     data: {
       id: genId("TKT"),
@@ -32,6 +44,7 @@ export async function POST(req: NextRequest) {
       subject,
       status: "Open",
       msgs: [{ from: "student", by: auth.name, text: message, ts: fnow() }],
+      chatSessionId,
     },
   });
 

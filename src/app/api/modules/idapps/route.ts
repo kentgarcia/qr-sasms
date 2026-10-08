@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
   const affidavitUrl = (body?.affidavitUrl || "").toString();
 
   if (!reason) return jsonError(400, "Please provide the reason/details.", "MISSING_FIELDS");
-  if (!orUrl) return jsonError(400, "Official Receipt upload is required.", "OR_REQUIRED");
   if (type === "ID Replacement — Lost" && !affidavitUrl) {
     return jsonError(400, "An Affidavit of Loss is required for a lost ID replacement.", "AFFIDAVIT_REQUIRED");
   }

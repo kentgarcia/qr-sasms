@@ -14,7 +14,7 @@ import { isValidSchoolYear, masterlistValidationError } from "@/lib/masterlist-v
 
 
 export async function POST(req: NextRequest) {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
 
   const body = await req.json().catch(() => null);

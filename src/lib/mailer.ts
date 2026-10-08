@@ -49,7 +49,7 @@ export async function sendMail(opts: {
   }
   try {
     await t.sendMail({
-      from: process.env.SMTP_FROM || "QR-SASMS <no-reply@pup-sanpedro.edu.ph>",
+      from: process.env.SMTP_FROM || "STARS <no-reply@pup-sanpedro.edu.ph>",
       to: opts.to,
       subject: opts.subject,
       text: opts.text,

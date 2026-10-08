@@ -6,7 +6,7 @@ import { addAudit, addNotification } from "@/lib/notify";
 export async function GET() {
   const auth = await requireSession();
   if (auth instanceof NextResponse) return auth;
-  if (auth.role === "admin" || auth.role === "super_admin") {
+  if (auth.role === "super_admin") {
     return NextResponse.json(await prisma.profileChange.findMany({ where: { status: "Pending" }, orderBy: { createdAt: "asc" } }));
   }
   const user = await prisma.user.findUnique({ where: { id: auth.uid }, select: { name: true, email: true, course: true, year: true } });

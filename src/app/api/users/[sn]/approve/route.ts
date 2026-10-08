@@ -6,7 +6,7 @@ import { normSN } from "@/lib/format";
 
 
 export async function PATCH(req: NextRequest, { params }: { params: { sn: string } }) {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
 
   const sn = normSN(decodeURIComponent(params.sn));
@@ -27,16 +27,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { sn: string
       studentId: sn,
       name: user.name,
       title: "Account Approved",
-      message: `Welcome, ${user.name}! Your QR-SASMS account has been approved by the SSO. You can now sign in and use all student services.`,
+      message: `Welcome, ${user.name}! Your STARS account has been approved by the SSO. You can now sign in and use all student services.`,
       ref: sn,
     });
-    await addNotification(sn, "Account Approved", "Your account has been approved — welcome to QR-SASMS!");
+    await addNotification(sn, "Account Approved", "Your account has been approved — welcome to STARS!");
   } else {
     await notifyStudentByEmail({
       studentId: sn,
       name: user.name,
       title: "Account Not Approved",
-      message: "We're sorry — your QR-SASMS registration was not approved. Please visit the SSO for assistance.",
+      message: "We're sorry — your STARS registration was not approved. Please visit the SSO for assistance.",
       ref: sn,
     });
     await prisma.user.delete({ where: { id: user.id } });

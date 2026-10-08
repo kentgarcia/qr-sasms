@@ -1,21 +1,25 @@
 services:
   db:
-    image: postgres:16-alpine
-    container_name: qrsasms-postgres
+    # pgvector image (PG16) — required by the AI assistant's semantic FAQ
+    # matching (Phase 1). Same PG major as before, so the existing
+    # stars_pgdata volume mounts cleanly; recreate the container after
+    # pulling: docker compose up -d --force-recreate db
+    image: pgvector/pgvector:pg16
+    container_name: stars-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: qrsasms
-      POSTGRES_PASSWORD: qrsasms
-      POSTGRES_DB: qrsasms
+      POSTGRES_USER: stars
+      POSTGRES_PASSWORD: stars
+      POSTGRES_DB: stars
     ports:
       - "5432:5432"
     volumes:
-      - qrsasms_pgdata:/var/lib/postgresql/data
+      - stars_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U qrsasms -d qrsasms"]
+      test: ["CMD-SHELL", "pg_isready -U stars -d stars"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  qrsasms_pgdata:
+  stars_pgdata:

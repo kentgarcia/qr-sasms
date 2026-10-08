@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 
-export const SESSION_COOKIE = "qrsasms_session";
+export const SESSION_COOKIE = "stars_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; 
 
 function secretKey() {

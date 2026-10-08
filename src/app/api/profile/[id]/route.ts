@@ -4,7 +4,7 @@ import { requireSession, jsonError } from "@/lib/http";
 import { addAudit, addNotification } from "@/lib/notify";
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
   const status = String((await req.json().catch(() => ({})))?.status || "");
   if (!["Approved", "Rejected"].includes(status)) return jsonError(400, "Invalid decision.", "INVALID_STATUS");

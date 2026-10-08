@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { requireSession, jsonError } from "@/lib/http";
 import { addAudit, addNotification } from "@/lib/notify";
 import { genId, fnow, withTs, withTsList } from "@/lib/format";
+import {
+  createLinkedAppointment,
+  validateSlotForBooking,
+  withSlotLock,
+} from "@/lib/appointments";
 
 export async function GET() {
   const auth = await requireSession();
@@ -51,6 +56,69 @@ export async function POST(req: NextRequest) {
     select: { id: true },
   });
   if (activeRequest) return jsonError(409, "This organization already has an active event request on that date.", "DUPLICATE_ORGANIZATION_DATE");
+
+  // Optional appointment chosen as part of the request (spec §3).
+  const appointmentDate = (body?.appointmentDate || body?.appointmentDateLabel || "").toString();
+  const appointmentTime = (body?.appointmentTime || "").toString();
+  if (appointmentDate || appointmentTime) {
+    if (!appointmentDate || !appointmentTime) {
+      return jsonError(400, "Please choose both an appointment date and time, or neither.", "MISSING_FIELDS");
+    }
+    let slot;
+    try {
+      slot = await validateSlotForBooking("EVENT", appointmentDate, appointmentTime);
+    } catch (error: unknown) {
+      const e = error as { statusCode?: number; code?: string; message?: string };
+      return jsonError(e.statusCode || 400, e.message || "Invalid appointment slot.", e.code || "INVALID_APPOINTMENT");
+    }
+    try {
+      const created = await withSlotLock(`slot:EVENT:${appointmentDate}:${appointmentTime}`, async (tx) => {
+        const clash = await tx.eventRequest.findFirst({
+          where: { organizationId, date, status: { in: ["Pending", "Under Review", "Approved", "Needs Revision"] } },
+          select: { id: true },
+        });
+        if (clash) throw Object.assign(new Error("This organization already has an active event request on that date."), { statusCode: 409, code: "DUPLICATE_ORGANIZATION_DATE" });
+        const id = genId("EVT");
+        const evt = await tx.eventRequest.create({
+          data: {
+            id,
+            sn: auth.studentId || "",
+            name: auth.name,
+            title, org, organizationId, adviser, date, time, venue, participants, budget, desc, type,
+            docName, docUrl,
+            status: "Pending",
+            history: [{ ts: fnow(), status: "Pending", by: auth.name, note: "" }],
+            appointmentDate,
+            appointmentTime,
+          },
+        });
+        const appointment = await createLinkedAppointment(tx, {
+          service: "EVENT",
+          studentId: auth.studentId || "",
+          studentName: auth.name,
+          dateLabel: appointmentDate,
+          time: appointmentTime,
+          slotStart: slot.slotStart,
+          slotEnd: slot.slotEnd,
+          capacity: slot.capacity,
+          linkedId: id,
+          organizationId,
+          purpose: title,
+          notes: desc,
+        });
+        return tx.eventRequest.update({ where: { id: evt.id }, data: { appointmentCode: appointment.code } });
+      });
+
+      await addAudit("INFO", `Event request "${title}" + appointment ${created.appointmentCode} submitted by ${auth.name} (${org}).`);
+      await addNotification("admin", "New Event Request", `${auth.name} (${org}) requested "${title}" with appointment ${created.appointmentCode}.`);
+
+      return NextResponse.json(withTs(created), { status: 201 });
+    } catch (error: unknown) {
+      const e = error as { statusCode?: number; code?: string; message?: string };
+      if (e.statusCode && e.code) return jsonError(e.statusCode, e.message || "Booking failed.", e.code);
+      throw error;
+    }
+  }
 
   const created = await prisma.eventRequest.create({
     data: {

@@ -10,7 +10,7 @@
     <div class="sidebar-brand">
       <img src="/pup-seal.jpg" alt="PUP San Pedro Seal">
       <div>
-        <div class="sidebar-brand-title">QR-SASMS</div>
+        <div class="sidebar-brand-title">STARS</div>
         <div class="sidebar-brand-subtitle">PUP San Pedro<br>Student Services Office</div>
       </div>
     </div>
@@ -43,8 +43,8 @@
         <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(30,5,5,.78);margin-bottom:4px;">Polytechnic University of the Philippines</div>
         <div style="font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(30,5,5,.62);margin-bottom:10px;">San Pedro Campus</div>
         <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(139,26,26,.2),transparent);margin:0 20px 12px;"></div>
-        <div style="font-size:20px;font-weight:900;letter-spacing:.1em;color:#1a0505;">QR-SASMS</div>
-        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8B1A1A;margin-top:3px;opacity:.7;">Student Administrative Services Management System</div>
+        <div style="font-size:20px;font-weight:900;letter-spacing:.1em;color:#1a0505;">STARS</div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8B1A1A;margin-top:3px;opacity:.7;">Student Transaction and Appointment Request System</div>
         <div style="font-size:12px;color:rgba(30,5,5,.75);margin-top:10px;">Sign in to continue</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:14px;">
@@ -135,44 +135,27 @@
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button id="studentBellToggle" onclick="toggleBell()" class="btn-ghost" style="position:relative;padding:10px 13px;font-size:13px;" aria-label="Notifications" title="Notifications"><i class="fa-solid fa-bell"></i><span id="studentBellBadge" class="notification-badge" style="display:none;position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;border-radius:99px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;align-items:center;justify-content:center;padding:0 3px;line-height:17px;">0</span></button>
-        <button onclick="goTo('page-request')" class="btn-gold"><i class="fa-solid fa-plus" style="margin-right:6px;"></i>New Request</button>
+        <button onclick="goTo('page-appointment-book')" class="btn-gold"><i class="fa-solid fa-calendar-plus" style="margin-right:6px;"></i>Book Appointment</button>
       </div>
     </div>
     
     <div class="grid-4" style="margin-bottom:20px;" id="studentKPI">
-      <div class="stat-card ac-maroon"><div class="input-label" style="margin-bottom:0;">All Requests</div><div id="kpiTotal" style="font-size:42px;font-weight:900;color:#1a0505;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Total submitted</div></div>
-      <div class="stat-card ac-gold"><div class="input-label" style="margin-bottom:0;">Pending</div><div id="kpiPending" style="font-size:42px;font-weight:900;color:#F5C518;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Awaiting processing</div></div>
-      <div class="stat-card ac-green"><div class="input-label" style="margin-bottom:0;">Ready to Claim</div><div id="kpiReady" style="font-size:42px;font-weight:900;color:#166534;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">QR code available</div></div>
+      <div class="stat-card ac-maroon"><div class="input-label" style="margin-bottom:0;">My Visits</div><div id="kpiTotal" style="font-size:42px;font-weight:900;color:#1a0505;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Booked all time</div></div>
+      <div class="stat-card ac-gold"><div class="input-label" style="margin-bottom:0;">Upcoming</div><div id="kpiPending" style="font-size:42px;font-weight:900;color:#F5C518;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Visits ahead</div></div>
+      <div class="stat-card ac-green"><div class="input-label" style="margin-bottom:0;">Served</div><div id="kpiReady" style="font-size:42px;font-weight:900;color:#166534;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Completed visits</div></div>
       <div class="stat-card ac-blue"><div class="input-label" style="margin-bottom:0;">Next Appointment</div><div style="font-size:20px;font-weight:900;color:#1d4ed8;margin:6px 0 2px;line-height:1.2;">June 25</div><div style="font-size:11px;color:rgba(30,5,5,.75);">APT-007 &middot; 9:30 AM</div></div>
     </div>
     <div class="layout-ms">
       
       <div style="display:flex;flex-direction:column;gap:16px;min-width:0;">
-      <div class="glass-card" style="overflow:hidden;">
-        <div style="padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;">
-          <div style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-file-lines" style="color:#D4A017;margin-right:8px;"></i>My Requests</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <select id="studentStatusFilter" class="glass-input" style="width:auto;padding:7px 10px;font-size:12px;" onchange="renderStudentTable(document.getElementById('studentSearch').value)">
-              <option value="">All Statuses</option><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="Ready to Claim">Ready to Claim</option><option value="Completed">Completed</option><option value="Rejected">Rejected</option>
-            </select>
-          <div style="position:relative;">
-            <i class="fa-solid fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:rgba(30,5,5,.55);font-size:12px;"></i>
-            <input id="studentSearch" type="text" placeholder="Search by document or ref&hellip;" class="glass-input" style="padding-left:34px;padding-top:7px;padding-bottom:7px;width:220px;font-size:12px;" oninput="renderStudentTable(this.value)"/>
-          </div></div>
+      <div class="glass-card" style="padding:0;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px 12px;">
+          <div style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-calendar-day" style="color:#D4A017;margin-right:8px;"></i>My Appointments</div>
+          <button onclick="goTo('page-appointment')" class="btn-ghost" style="padding:6px 12px;font-size:11px;">View all</button>
         </div>
-        <div class="request-table-shell">
-          <div class="request-table-scroll">
-            <table class="glass-table">
-              <thead><tr><th>Ref No.</th><th>Document</th><th>Date</th><th>Status</th><th style="text-align:right;">Action</th></tr></thead>
-              <tbody id="studentTable"></tbody>
-            </table>
-            <div id="studentTableEmpty" class="empty-state" style="display:none;"><i class="fa-solid fa-folder-open"></i>No requests yet.<br><span style="font-size:12px;">Submit your first request to see it here.</span></div>
-          </div>
-          <div id="studentTablePagination" class="table-pagination-bar"></div>
-        </div>
+        <div id="dashboardAppointments" style="padding:0 18px 18px;"></div>
       </div>
-      
-      <div id="studentEventStatusCard" class="glass-card" style="display:none;margin-top:16px;padding:18px;overflow:hidden;"></div>
+      <div id="studentRequestCard" class="glass-card" style="display:none;margin-top:16px;padding:18px;overflow:hidden;"></div>
       </div>
       
       <div style="display:flex;flex-direction:column;gap:16px;">
@@ -184,102 +167,23 @@
             <div style="font-size:12px;color:rgba(20,4,4,.78);margin-top:6px;">Wednesday, June 25, 2026</div>
             <div style="font-size:14px;font-weight:800;color:#F5C518;margin-top:2px;">9:30 AM</div>
           </div>
-          <button onclick="goTo('page-appointment')" class="btn-ghost" style="width:100%;margin-top:12px;padding:10px;"><i class="fa-solid fa-calendar-plus" style="margin-right:6px;"></i>Book Another Slot</button>
+          <button onclick="goTo('page-appointment-book')" class="btn-ghost" style="width:100%;margin-top:12px;padding:10px;"><i class="fa-solid fa-calendar-plus" style="margin-right:6px;"></i>Book Another Slot</button>
         </div>
         <div class="glass-card" style="padding:20px;">
           <div class="input-label" style="margin-bottom:12px;"><i class="fa-solid fa-bolt" style="color:#D4A017;margin-right:5px;"></i>Quick Request</div>
           <div style="display:flex;flex-direction:column;gap:6px;">
-            <button onclick="quickRequest('gmc')" class="quick-link"><i class="fa-solid fa-file-circle-check" style="color:#C8890F;width:16px;text-align:center;"></i>Excuse Slip<i class="fa-solid fa-chevron-right" style="margin-left:auto;opacity:.3;font-size:11px;"></i></button>
+            <button onclick="bookFor('EXCUSE')" class="quick-link"><i class="fa-solid fa-file-circle-check" style="color:#C8890F;width:16px;text-align:center;"></i>Excuse Slip<i class="fa-solid fa-chevron-right" style="margin-left:auto;opacity:.3;font-size:11px;"></i></button>
             <button onclick="goTo('page-referral')" class="quick-link"><i class="fa-solid fa-hand-holding-heart" style="color:#C8890F;width:16px;text-align:center;"></i>Referral &amp; Intervention<i class="fa-solid fa-chevron-right" style="margin-left:auto;opacity:.3;font-size:11px;"></i></button>
             <button onclick="goTo('page-idapp')" class="quick-link"><i class="fa-solid fa-id-card" style="color:#C8890F;width:16px;text-align:center;"></i>ID Application<i class="fa-solid fa-chevron-right" style="margin-left:auto;opacity:.3;font-size:11px;"></i></button>
             <button onclick="goTo('page-complaint')" class="quick-link"><i class="fa-solid fa-shield-heart" style="color:#C8890F;width:16px;text-align:center;"></i>Complaints<i class="fa-solid fa-chevron-right" style="margin-left:auto;opacity:.3;font-size:11px;"></i></button>
             <button onclick="goTo('page-helpdesk')" class="quick-link"><i class="fa-solid fa-robot" style="color:#C8890F;width:16px;text-align:center;"></i>Student Service Help<i class="fa-solid fa-chevron-right" style="margin-left:auto;opacity:.3;font-size:11px;"></i></button>
-            <button onclick="quickRequest('auth')" class="quick-link"><i class="fa-solid fa-stamp" style="color:#C8890F;width:16px;text-align:center;"></i>Authentication<i class="fa-solid fa-chevron-right" style="margin-left:auto;opacity:.3;font-size:11px;"></i></button>
+            <button onclick="bookFor('AUTH')" class="quick-link"><i class="fa-solid fa-stamp" style="color:#C8890F;width:16px;text-align:center;"></i>Authentication<i class="fa-solid fa-chevron-right" style="margin-left:auto;opacity:.3;font-size:11px;"></i></button>
           </div>
         </div>
       </div>
     </div>
   </div>
-  
-  <div id="qrModal" class="modal-overlay">
-    <div class="modal-box" style="text-align:center;max-width:340px;">
-      <div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8B1A1A;margin-bottom:16px;">&#x2705; APPROVED &mdash; Scan to Verify</div>
-      <div id="qrCanvas" style="display:flex;justify-content:center;margin-bottom:14px;border-radius:12px;overflow:hidden;"></div>
-      <div id="qrDocName" style="font-size:13px;color:#1a0505;font-weight:600;"></div>
-      <div id="qrRefNo" style="font-family:monospace;font-size:11px;color:rgba(30,5,5,.62);margin-top:4px;"></div>
-      <button onclick="closeQR()" class="btn-maroon" style="width:100%;margin-top:20px;">Close</button>
-    </div>
-  </div>
-  
-  <div id="detailModal" class="modal-overlay">
-    <div class="modal-box" style="max-width:420px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <div style="font-size:16px;font-weight:900;color:#1a0505;">Request Details</div>
-        <button onclick="closeDetail()" style="background:none;border:none;color:rgba(30,5,5,.75);cursor:pointer;font-size:18px;"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div id="detailContent" style="background:rgba(255,255,255,.6);border:1px solid rgba(139,26,26,.08);border-radius:12px;padding:14px;"></div>
-      <button onclick="closeDetail()" class="btn-ghost" style="width:100%;margin-top:16px;padding:11px;">Close</button>
-    </div>
-  </div>
 </div>
-
-
-<div id="page-request" class="page">
-  <div style="max-width:640px;margin:0 auto;padding:0 20px 40px;">
-    <div style="padding:28px 0 20px;">
-      <button onclick="goTo('page-student')" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</button>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:14px;margin-bottom:4px;">
-        <div style="width:32px;height:32px;flex-shrink:0;"><img src="/pup-seal.jpg" alt="PUP Seal" style="width:32px;height:32px;border-radius:50%;object-fit:cover;object-position:center;display:block;filter:drop-shadow(0 1px 3px rgba(139,26,26,.25));"></div>
-        <div style="font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(30,5,5,.62);">PUP San Pedro &middot; Student Services Office</div>
-      </div>
-      <div class="page-title">Submit a Document Request</div>
-      <div class="page-sub">Fill out the form below. Track your request status on the dashboard.</div>
-    </div>
-    <div class="glass-card" style="padding:28px;border-top:3px solid rgba(139,26,26,.8);">
-      <div style="display:flex;flex-direction:column;gap:18px;">
-        <div>
-          <span class="input-label">Document Type <span style="color:#f87171;">*</span></span>
-          <select id="reqDocType" onchange="updateDocHelp(this.value)" class="glass-input">
-            <option value="">&mdash; Select document type &mdash;</option>
-            <option value="gmc">Excuse Slip</option>
-            <option value="auth">Authentication</option>
-            <option value="other">Other</option>
-          </select>
-          <div id="reqDocTypeErr" class="field-error"><i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;"></i>Please select a document type</div>
-          <div id="docHelp" class="info-box" style="display:none;margin-top:8px;"></div>
-        </div>
-        <div>
-          <span class="input-label">Purpose / Reason <span style="color:#f87171;">*</span></span>
-          <select id="reqPurpose" class="glass-input">
-            <option value="">&mdash; Select purpose &mdash;</option>
-            <option>Employment</option>
-            <option>Further Studies / Graduate School</option>
-            <option>Government Transaction</option>
-            <option>Scholarship Application</option>
-            <option>Personal Copy</option>
-            <option>Other</option>
-          </select>
-          <div id="reqPurposeErr" class="field-error"><i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;"></i>Please select a purpose</div>
-        </div>
-        <div>
-          <span class="input-label">Number of Copies</span>
-          <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
-            <button onclick="changeCopies(-1)" class="btn-ghost" style="width:40px;height:40px;padding:0;display:flex;align-items:center;justify-content:center;font-size:18px;border-radius:12px;flex-shrink:0;">&minus;</button>
-            <span id="copiesVal" style="font-size:28px;font-weight:900;color:#701515;min-width:32px;text-align:center;">1</span>
-            <button onclick="changeCopies(1)" class="btn-ghost" style="width:40px;height:40px;padding:0;display:flex;align-items:center;justify-content:center;font-size:18px;border-radius:12px;flex-shrink:0;">+</button>
-          </div>
-        </div>
-        <div><span class="input-label">Additional Notes</span><textarea id="reqNotes" rows="3" placeholder="Any specific instructions or additional details&hellip;" class="glass-input" style="resize:none;padding:12px 16px;line-height:1.5;"></textarea></div>
-        <div class="info-box"><i class="fa-solid fa-circle-info" style="color:#F5C518;margin-right:6px;"></i>Processing time is typically <strong style="color:#1a0505;">3&ndash;5 working days</strong>. Bring your student ID when claiming.</div>
-        <div style="display:flex;gap:10px;">
-          <button id="submitReqBtn" onclick="submitRequest()" class="btn-maroon" style="flex:1;padding:13px;font-size:14px;"><i class="fa-solid fa-paper-plane" style="margin-right:8px;"></i>Submit Request</button>
-          <button onclick="goTo('page-student')" class="btn-ghost" style="padding:13px 20px;">Cancel</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 
 <div id="page-appointment" class="page">
   <div style="max-width:900px;margin:0 auto;padding:0 20px 40px;">
@@ -289,18 +193,47 @@
         <div style="width:32px;height:32px;flex-shrink:0;"><img src="/pup-seal.jpg" alt="PUP Seal" style="width:32px;height:32px;border-radius:50%;object-fit:cover;object-position:center;display:block;filter:drop-shadow(0 1px 3px rgba(139,26,26,.25));"></div>
         <div style="font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(30,5,5,.62);">PUP San Pedro &middot; Student Services Office</div>
       </div>
-      <div class="page-title">Book an Appointment</div>
-      <div class="page-sub">Choose a date and time slot to visit the SSO.</div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div class="page-title">My Appointments</div>
+          <div class="page-sub">Your upcoming visits and booking history.</div>
+        </div>
+        <button onclick="goTo('page-appointment-book')" class="btn-gold" style="padding:11px 18px;"><i class="fa-solid fa-calendar-plus" style="margin-right:6px;"></i>Book Appointment</button>
+      </div>
     </div>
-    <div class="layout-2c">
-      <div class="glass-card" style="padding:22px;">
+    <div id="myAppointmentsList"></div>
+  </div>
+</div>
+
+
+<div id="page-appointment-book" class="page">
+  <div style="max-width:900px;margin:0 auto;padding:0 20px 40px;">
+    <div style="padding:28px 0 20px;">
+      <button onclick="goTo('page-appointment')" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:14px;margin-bottom:4px;">
+        <div style="width:32px;height:32px;flex-shrink:0;"><img src="/pup-seal.jpg" alt="PUP Seal" style="width:32px;height:32px;border-radius:50%;object-fit:cover;object-position:center;display:block;filter:drop-shadow(0 1px 3px rgba(139,26,26,.25));"></div>
+        <div style="font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(30,5,5,.62);">PUP San Pedro &middot; Student Services Office</div>
+      </div>
+      <div class="page-title">Book an Appointment</div>
+      <div class="page-sub">Choose a service below. Event requests, psych sessions, and general visits book a date and time — authentication, excuse slips, and IDs are filed as requests right here.</div>
+    </div>
+    <div class="glass-card" style="padding:22px;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:800;color:#1a0505;margin-bottom:4px;"><i class="fa-solid fa-concierge-bell" style="color:#D4A017;margin-right:8px;"></i>What do you need?</div>
+      <div style="font-size:11px;color:rgba(30,5,5,.62);margin-bottom:12px;">Pick a service to continue — the date picker shows only for services that need a scheduled visit.</div>
+      <div id="apptServiceChips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      <div id="apptRequestForm" style="margin-top:12px;display:none;"></div>
+    </div>
+    <div class="layout-2c" id="bookScheduleWrap" style="display:none;">
+      <div class="glass-card" id="bookDateCard" style="padding:22px;">
         <div style="font-size:15px;font-weight:800;color:#1a0505;margin-bottom:16px;"><i class="fa-solid fa-calendar" style="color:#D4A017;margin-right:8px;"></i>Select a Date</div>
         <div id="calendar"></div>
       </div>
-      <div class="glass-card" style="padding:22px;">
+      <div class="glass-card" id="bookSlotsCard" style="padding:22px;">
         <div style="font-size:15px;font-weight:800;color:#1a0505;margin-bottom:4px;"><i class="fa-solid fa-clock" style="color:#D4A017;margin-right:8px;"></i>Available Time Slots</div>
         <div id="selectedDateLabel" style="font-size:11px;color:rgba(30,5,5,.62);margin-bottom:14px;">Select a date first.</div>
         <div id="timeSlots" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
+        <div style="margin-top:14px;"><span class="input-label">Additional information <span style="font-weight:400;color:rgba(30,5,5,.5);">(optional)</span></span>
+          <textarea id="apptNotes" class="glass-input" rows="3" placeholder="Anything the SSO should know before your visit…" oninput="apptNotesText=this.value"></textarea></div>
         <div id="confirmCard" style="display:none;margin-top:16px;border:1px solid rgba(245,197,24,.35);border-radius:16px;padding:16px;text-align:center;background:rgba(245,197,24,.05);">
           <div class="input-label" style="margin-bottom:8px;">Your Appointment Number</div>
           <div style="background:rgba(139,26,26,.6);border:1px solid rgba(245,197,24,.25);border-radius:12px;padding:16px;margin-bottom:12px;">
@@ -332,33 +265,32 @@
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
         <button id="adminBellToggle" onclick="toggleBell()" class="btn-ghost" style="position:relative;padding:10px 13px;font-size:13px;" aria-label="Notifications" title="Notifications"><i class="fa-solid fa-bell"></i><span id="adminBellBadge" class="notification-badge" style="display:none;position:absolute;top:-6px;right:-6px;min-width:17px;height:17px;border-radius:99px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;align-items:center;justify-content:center;padding:0 3px;line-height:17px;">0</span></button>
-        <button onclick="goTo('page-scanner')" class="btn-maroon" style="padding:10px 18px;font-size:13px;"><i class="fa-solid fa-qrcode" style="margin-right:6px;"></i>Open Scanner</button>
       </div>
     </div>
     
     <div class="grid-4" style="margin-bottom:20px;">
-      <div class="stat-card ac-maroon"><div class="input-label" style="margin-bottom:0;">Total Requests</div><div id="adminKpiTotal" style="font-size:40px;font-weight:900;color:#1a0505;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">All students</div></div>
-      <div class="stat-card ac-gold"><div class="input-label" style="margin-bottom:0;">Pending</div><div id="adminKpiPending" style="font-size:40px;font-weight:900;color:#F5C518;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Needs attention</div></div>
-      <div class="stat-card ac-green"><div class="input-label" style="margin-bottom:0;">Approved &amp; Ready</div><div id="adminKpiApproved" style="font-size:40px;font-weight:900;color:#166534;margin:6px 0 2px;line-height:1;">0</div><div id="adminKpiClearance" style="font-size:11px;color:rgba(30,5,5,.75);">clearance rate</div></div>
-      <div class="stat-card ac-red"><div class="input-label" style="margin-bottom:0;">Rejected</div><div id="adminKpiRejected" style="font-size:40px;font-weight:900;color:#991b1b;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">rejection rate</div></div>
+      <div class="stat-card ac-maroon"><div class="input-label" style="margin-bottom:0;">Total Visits</div><div id="adminKpiTotal" style="font-size:40px;font-weight:900;color:#1a0505;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">All students</div></div>
+      <div class="stat-card ac-gold"><div class="input-label" style="margin-bottom:0;">Active</div><div id="adminKpiPending" style="font-size:40px;font-weight:900;color:#F5C518;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Needs attention</div></div>
+      <div class="stat-card ac-green"><div class="input-label" style="margin-bottom:0;">Served</div><div id="adminKpiApproved" style="font-size:40px;font-weight:900;color:#166534;margin:6px 0 2px;line-height:1;">0</div><div id="adminKpiClearance" style="font-size:11px;color:rgba(30,5,5,.75);">clearance rate</div></div>
+      <div class="stat-card ac-red"><div class="input-label" style="margin-bottom:0;">Cancelled / No-show</div><div id="adminKpiRejected" style="font-size:40px;font-weight:900;color:#991b1b;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">rejection rate</div></div>
     </div>
     <div id="adminActivity" class="glass-card" style="padding:14px 18px;margin-bottom:20px;display:none;"></div>
     
     <div class="layout-cs" style="margin-bottom:20px;">
       <div class="glass-card" style="padding:22px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <div style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-chart-pie" style="color:#D4A017;margin-right:8px;"></i>Request Breakdown</div>
+          <div style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-chart-pie" style="color:#D4A017;margin-right:8px;"></i>Visit Breakdown</div>
           <span class="badge badge-approved" id="clearanceBadge">0% Clearance</span>
         </div>
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:24px;">
           <div style="width:160px;height:160px;flex-shrink:0;"><canvas id="adminChart"></canvas></div>
           <div style="flex:1;min-width:160px;">
             <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:rgba(20,4,4,.82);"><span style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#8B1A1A;display:inline-block;"></span>Approved / Ready</span><span id="legendApproved" style="font-weight:900;color:#1a0505;">0</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:rgba(20,4,4,.82);"><span style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#8B1A1A;display:inline-block;"></span>Served</span><span id="legendApproved" style="font-weight:900;color:#1a0505;">0</span></div>
               <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:rgba(20,4,4,.82);"><span style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#F5C518;display:inline-block;"></span>Pending</span><span id="legendPending" style="font-weight:900;color:#F5C518;">0</span></div>
-              <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:rgba(20,4,4,.82);"><span style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;"></span>Rejected</span><span id="legendRejected" style="font-weight:900;color:#991b1b;">0</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;color:rgba(20,4,4,.82);"><span style="display:flex;align-items:center;gap:8px;"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;"></span>Cancelled / No-show</span><span id="legendRejected" style="font-weight:900;color:#991b1b;">0</span></div>
             </div>
-            <div class="input-label" style="margin-bottom:8px;">By Document Type</div>
+            <div class="input-label" style="margin-bottom:8px;">By Service</div>
             <canvas id="barChart" height="80"></canvas>
           </div>
         </div>
@@ -388,35 +320,36 @@
         <div style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-inbox" style="color:#D4A017;margin-right:8px;"></i>Processing Queue</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <select id="adminDocFilter" class="glass-input" style="width:auto;padding:6px 12px;font-size:12px;" onchange="renderAdminTable()">
-            <option value="">All Documents</option>
+            <option value="">All Services</option>
           </select>
           <select id="adminSort" class="glass-input" style="width:auto;padding:6px 12px;font-size:12px;" onchange="renderAdminTable()">
             <option value="new">Newest First</option>
             <option value="old">Oldest First</option>
-            <option value="doc">Document A&ndash;Z</option>
+            <option value="svc">Service A&ndash;Z</option>
             <option value="stu">Student A&ndash;Z</option>
           </select>
           <select id="adminStatusFilter" class="glass-input" style="width:auto;padding:6px 12px;font-size:12px;" onchange="renderAdminTable()">
             <option value="">All Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="Approved">Approved</option>
-            <option value="Ready to Claim">Ready to Claim</option>
-            <option value="Completed">Completed</option>
-            <option value="Rejected">Rejected</option>
+            <option value="PENDING_APPROVAL">Pending Approval</option>
+            <option value="BOOKED">Booked</option>
+            <option value="RESCHEDULED">Rescheduled</option>
+            <option value="CHECKED_IN">Checked In</option>
+            <option value="SERVED">Served</option>
+            <option value="CANCELLED">Cancelled</option><option value="NO_SHOW">No-show</option>
           </select>
           <div style="position:relative;">
             <i class="fa-solid fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:rgba(30,5,5,.55);font-size:11px;"></i>
-            <input id="adminSearch" type="text" placeholder="Search student or document&hellip;" class="glass-input" style="padding-left:30px;padding-top:6px;padding-bottom:6px;font-size:12px;width:210px;" oninput="renderAdminTable()"/>
+            <input id="adminSearch" type="text" placeholder="Search student, code, or service&hellip;" class="glass-input" style="padding-left:30px;padding-top:6px;padding-bottom:6px;font-size:12px;width:210px;" oninput="renderAdminTable()"/>
           </div>
         </div>
       </div>
       <div class="processing-queue-shell">
         <div class="processing-queue-scroll">
           <table class="glass-table">
-            <thead><tr><th>Student</th><th>Document</th><th>Submitted</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead>
+            <thead><tr><th>Student</th><th>Service</th><th>Visit</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead>
             <tbody id="adminTable"></tbody>
           </table>
-          <div id="adminTableEmpty" class="empty-state" style="display:none;"><i class="fa-solid fa-inbox"></i>No matching requests found.</div>
+          <div id="adminTableEmpty" class="empty-state" style="display:none;"><i class="fa-solid fa-inbox"></i>No matching appointments found.</div>
         </div>
         <div id="adminTablePagination" class="table-pagination-bar"></div>
       </div>
@@ -439,18 +372,6 @@
     </details>
   </div>
   
-  <div id="adminDetailModal" class="modal-overlay">
-    <div class="modal-box" style="max-width:440px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <div style="font-size:16px;font-weight:900;color:#1a0505;">Request Details</div>
-        <button onclick="closeAdminDetail()" style="background:none;border:none;color:rgba(30,5,5,.75);cursor:pointer;font-size:18px;"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div id="adminDetailContent" style="background:rgba(255,255,255,.7);border:1px solid rgba(139,26,26,.1);border-radius:12px;padding:14px;margin-bottom:16px;"></div>
-      <div id="adminDetailActions" style="display:flex;gap:8px;"></div>
-    </div>
-  </div>
-
-  
   <div id="allQueueModal" class="modal-overlay" onclick="if(event.target===this)closeAllAppointments()">
     <div class="modal-box" style="max-width:720px;width:100%;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
@@ -462,33 +383,94 @@
   </div>
 
   
-  <div id="rejectModal" class="modal-overlay">
-    <div class="modal-box" style="max-width:420px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-        <div style="font-size:16px;font-weight:900;color:#1a0505;"><i class="fa-solid fa-circle-xmark" style="color:#dc2626;margin-right:8px;"></i>Reject Request</div>
-        <button onclick="closeRejectModal()" style="background:none;border:none;color:rgba(30,5,5,.75);cursor:pointer;font-size:18px;"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div id="rejectModalMeta" style="font-size:12px;color:rgba(30,5,5,.65);background:rgba(255,255,255,.7);border:1px solid rgba(139,26,26,.1);border-radius:10px;padding:10px 12px;margin-bottom:12px;"></div>
-      <span class="input-label">Reason for Rejection <span style="color:#f87171;">*</span></span>
-      <textarea id="rejectReasonInput" class="glass-input" rows="4" placeholder="e.g., Incomplete requirements &mdash; please attach a photocopy of your registration form and re-submit."></textarea>
-      <div id="rejectReasonErr" style="display:none;font-size:11px;font-weight:700;color:#b91c1c;margin-top:5px;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;"></i>A reason is required so the student knows what to fix.</div>
-      <div style="display:flex;gap:8px;margin-top:14px;">
-        <button onclick="confirmReject()" style="flex:1;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);color:#b91c1c;font-weight:800;padding:11px;border-radius:12px;font-size:13px;cursor:pointer;font-family:inherit;"><i class="fa-solid fa-circle-xmark" style="margin-right:6px;"></i>Confirm Rejection</button>
-        <button onclick="closeRejectModal()" class="btn-ghost" style="padding:11px 16px;font-size:13px;">Cancel</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 
-<div id="page-services" class="page">
-  <div style="max-width:1000px;margin:0 auto;padding:0 20px 40px;">
-    <div style="padding:28px 0 20px;display:flex;align-items:flex-start;gap:12px;">
-      <button onclick="goTo('page-student')" class="btn-ghost" style="padding:8px 12px;border-radius:12px;" aria-label="Back to dashboard"><i class="fa-solid fa-arrow-left"></i></button>
-      <div><h1 style="font-size:24px;font-weight:900;color:#1a0505;">Student Services</h1>
-      <p style="font-size:13px;color:rgba(30,5,5,.65);">All OSS services in one place. Select a service to get started.</p></div>
+<div id="page-appointments" class="page">
+  <div style="max-width:1200px;margin:0 auto;padding:0 20px 40px;">
+    <div style="padding:28px 0 20px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;">
+      <div>
+        <button onclick="goTo('page-admin')" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</button>
+        <div class="breadcrumb" style="margin-top:14px;"><i class="fa-solid fa-calendar-days" style="margin-right:4px;"></i>Admin / Requests / Appointments</div>
+        <div class="page-title">Appointments</div>
+        <div class="page-sub">All student visits — calendar and list views.</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button id="adminApptViewCal" onclick="setAdminApptView('calendar')" class="btn-ghost" style="padding:9px 16px;font-size:12px;"><i class="fa-solid fa-calendar-days" style="margin-right:5px;"></i>Calendar</button>
+        <button id="adminApptViewList" onclick="setAdminApptView('list')" class="btn-maroon" style="padding:9px 16px;font-size:12px;"><i class="fa-solid fa-list" style="margin-right:5px;"></i>List</button>
+      </div>
     </div>
-    <div id="servicesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;"></div>
+    <div class="glass-card" style="padding:18px 20px;margin-bottom:16px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <div style="position:relative;flex:1;min-width:200px;">
+          <i class="fa-solid fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:rgba(30,5,5,.55);font-size:11px;"></i>
+          <input id="adminApptSearch" type="text" placeholder="Search code, name, or student no…" class="glass-input" style="padding-left:30px;padding-top:8px;padding-bottom:8px;font-size:12px;" oninput="adminApptSearch=this.value;adminApptPage=1;renderAdminAppointmentsList()"/>
+        </div>
+        <select id="adminApptSvc" class="glass-input" style="width:auto;padding:8px 12px;font-size:12px;" onchange="adminApptSvc=this.value;adminApptPage=1;renderAdminAppointmentsList()">
+          <option value="">All Services</option>
+        </select>
+        <select id="adminApptStatus" class="glass-input" style="width:auto;padding:8px 12px;font-size:12px;" onchange="adminApptStatus=this.value;adminApptPage=1;renderAdminAppointmentsList()">
+          <option value="">All Statuses</option>
+          <option value="PENDING_APPROVAL">Pending Approval</option>
+          <option value="BOOKED">Booked</option>
+          <option value="RESCHEDULED">Rescheduled</option>
+          <option value="CHECKED_IN">Checked In</option>
+          <option value="SERVED">Served</option>
+          <option value="CANCELLED">Cancelled</option>
+          <option value="NO_SHOW">No-show</option>
+        </select>
+      </div>
+    </div>
+    <div id="adminApptCalendarWrap" class="layout-2c">
+      <div class="glass-card" style="padding:22px;">
+        <div style="font-size:15px;font-weight:800;color:#1a0505;margin-bottom:16px;"><i class="fa-solid fa-calendar" style="color:#D4A017;margin-right:8px;"></i>Calendar</div>
+        <div id="adminApptCalendar"></div>
+      </div>
+      <div class="glass-card" style="padding:22px;">
+        <div id="adminApptDayTitle" style="font-size:15px;font-weight:800;color:#1a0505;margin-bottom:4px;">Select a date</div>
+        <div id="adminApptDayMeta" style="font-size:11px;color:rgba(30,5,5,.62);margin-bottom:12px;">Pick a day on the calendar to see its visits.</div>
+        <div id="adminApptDayList" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;"></div>
+      </div>
+    </div>
+    <div id="adminApptPendingWrap" class="glass-card" style="overflow:hidden;margin-bottom:16px;display:none;">
+      <div style="padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-hourglass-half" style="color:#D4A017;margin-right:8px;"></i>Pending Approval</div>
+        <div id="adminApptPendingMeta" style="font-size:11px;color:rgba(30,5,5,.58);"></div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="glass-table">
+          <thead><tr><th>Appointment</th><th>Student</th><th>Visit</th><th style="text-align:right;">Actions</th></tr></thead>
+          <tbody id="adminApptPendingTable"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="adminApptListWrap" class="glass-card" style="overflow:hidden;display:none;">
+      <div style="padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-list" style="color:#D4A017;margin-right:8px;"></i>All Appointments</div>
+        <div id="adminApptListMeta" style="font-size:11px;color:rgba(30,5,5,.58);"></div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="glass-table">
+          <thead><tr><th>Appointment</th><th>Student</th><th>Visit</th><th>Status</th><th style="text-align:right;">Actions</th></tr></thead>
+          <tbody id="adminApptTable"></tbody>
+        </table>
+        <div id="adminApptEmpty" class="empty-state" style="display:none;"><i class="fa-solid fa-calendar-xmark"></i>No matching appointments found.</div>
+      </div>
+      <div id="adminApptPagination" class="table-pagination-bar"></div>
+    </div>
+    <div class="glass-card" style="overflow:hidden;margin-top:16px;">
+      <div style="padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-box-open" style="color:#D4A017;margin-right:8px;"></i>Scheduled Pickups</div>
+        <div id="adminApptPickupMeta" style="font-size:11px;color:rgba(30,5,5,.58);"></div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="glass-table">
+          <thead><tr><th>Request</th><th>Student</th><th>Pickup</th><th>Status</th><th style="text-align:right;">Action</th></tr></thead>
+          <tbody id="adminApptPickupTable"></tbody>
+        </table>
+        <div id="adminApptPickupEmpty" class="empty-state" style="display:none;"><i class="fa-solid fa-box-open"></i>No pickups scheduled.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -501,6 +483,34 @@
       <p style="font-size:13px;color:rgba(30,5,5,.65);">Manage all OSS service modules.</p></div>
     </div>
     <div id="manageGrid"></div>
+  </div>
+</div>
+
+
+<div id="page-settings" class="page">
+  <div style="max-width:1000px;margin:0 auto;padding:0 20px 40px;">
+    <div style="padding:28px 0 16px;display:flex;align-items:flex-start;gap:12px;">
+      <button onclick="goTo('page-manage')" class="btn-ghost" style="padding:8px 12px;border-radius:12px;flex-shrink:0;" aria-label="Back to management"><i class="fa-solid fa-arrow-left"></i></button>
+      <span style="display:grid;place-items:center;width:44px;height:44px;flex-shrink:0;border-radius:14px;color:#F5C518;background:linear-gradient(135deg,#8B1A1A,#6B1212);box-shadow:0 4px 16px rgba(139,26,26,.35);font-size:17px;"><i class="fa-solid fa-sliders"></i></span>
+      <div style="min-width:0;">
+        <div class="breadcrumb"><i class="fa-solid fa-gear" style="margin-right:4px;"></i>Admin / Manage / Settings</div>
+        <h1 style="font-size:22px;font-weight:900;color:#1a0505;line-height:1.2;">System Settings <span style="font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#F5C518;background:linear-gradient(135deg,#8B1A1A,#6B1212);border-radius:99px;padding:3px 10px;vertical-align:middle;margin-left:6px;white-space:nowrap;">Super Admin</span></h1>
+        <p style="font-size:12px;color:rgba(30,5,5,.62);margin-top:4px;max-width:640px;">Booking hours, per-lane capacity, assistant strictness, and email branding — changes apply to future bookings the moment you save.</p>
+      </div>
+    </div>
+    <div id="settingsBody"></div>
+  </div>
+</div>
+
+
+<div id="page-account" class="page">
+  <div style="max-width:1000px;margin:0 auto;padding:0 20px 40px;">
+    <div style="padding:28px 0 20px;display:flex;align-items:flex-start;gap:12px;">
+      <button onclick="goBack()" class="btn-ghost" style="padding:8px 12px;border-radius:12px;" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button>
+      <div><h1 style="font-size:24px;font-weight:900;color:#1a0505;">Account Settings</h1>
+      <p style="font-size:13px;color:rgba(30,5,5,.65);">Manage your account information and password.</p></div>
+    </div>
+    <div id="accountBody"></div>
   </div>
 </div>
 
@@ -525,7 +535,7 @@
       <button onclick="goBack()" class="btn-ghost" style="padding:8px 12px;"><i class="fa-solid fa-arrow-left"></i></button>
       <div>
         <h1 style="font-size:22px;font-weight:900;color:#1a0505;">Student ID Application &amp; Replacement</h1>
-        <p style="font-size:12px;color:rgba(30,5,5,.6);">Apply for a new ID or replacement. Official Receipt (OR) upload is required.</p>
+        <p style="font-size:12px;color:rgba(30,5,5,.6);">Apply for a new ID or replacement. An Affidavit of Loss is required for a lost ID.</p>
       </div>
     </div>
     <div id="idappBody"></div>
@@ -561,6 +571,20 @@
 </div>
 
 
+<div id="page-tickets" class="page">
+  <div style="max-width:900px;margin:0 auto;padding:0 20px 40px;">
+    <div style="padding:28px 0 16px;display:flex;align-items:center;gap:10px;">
+      <button onclick="goBack()" class="btn-ghost" style="padding:8px 12px;"><i class="fa-solid fa-arrow-left"></i></button>
+      <div>
+        <h1 style="font-size:22px;font-weight:900;color:#1a0505;">My Help Desk Tickets</h1>
+        <p style="font-size:12px;color:rgba(30,5,5,.6);">Track your inquiries and replies from OSS personnel.</p>
+      </div>
+    </div>
+    <div id="ticketsBody"></div>
+  </div>
+</div>
+
+
 <div id="page-faq" class="page">
   <div style="max-width:900px;margin:0 auto;padding:0 20px 40px;">
     <div style="padding:28px 0 16px;display:flex;align-items:center;gap:10px;">
@@ -575,16 +599,16 @@
 </div>
 
 
-<div id="page-events2" class="page">
-  <div style="max-width:950px;margin:0 auto;padding:0 20px 40px;">
+<div id="page-requests" class="page">
+  <div style="max-width:900px;margin:0 auto;padding:0 20px 40px;">
     <div style="padding:28px 0 16px;display:flex;align-items:center;gap:10px;">
       <button onclick="goBack()" class="btn-ghost" style="padding:8px 12px;"><i class="fa-solid fa-arrow-left"></i></button>
       <div>
-        <h1 style="font-size:22px;font-weight:900;color:#1a0505;">Event Request</h1>
-        <p style="font-size:12px;color:rgba(30,5,5,.6);">For recognized student organizations to request event approval.</p>
+        <h1 id="requestsTitle" style="font-size:22px;font-weight:900;color:#1a0505;">Authentication, Excuse Slip &amp; Visits</h1>
+        <p id="requestsSub" style="font-size:12px;color:rgba(30,5,5,.6);">File a request. Pickups are scheduled by the SSO when your documents are ready.</p>
       </div>
     </div>
-    <div id="events2Body"></div>
+    <div id="requestsBody"></div>
   </div>
 </div>
 
@@ -617,6 +641,50 @@
 </div>
 
 
+<div id="page-masterlist" class="page">
+  <div style="max-width:1000px;margin:0 auto;padding:0 20px 40px;">
+    <div style="padding:28px 0 16px;display:flex;align-items:center;gap:10px;">
+      <button onclick="goTo('page-manage')" class="btn-ghost" style="padding:8px 12px;"><i class="fa-solid fa-arrow-left"></i></button>
+      <div>
+        <h1 style="font-size:22px;font-weight:900;color:#1a0505;">Masterlist Manager</h1>
+        <p style="font-size:12px;color:rgba(30,5,5,.6);">Add entries one by one or in bulk — and register student accounts straight from unregistered rows.</p>
+      </div>
+    </div>
+    <div id="masterlistBody"></div>
+  </div>
+</div>
+
+
+<div id="page-accounts" class="page">
+  <div style="max-width:1000px;margin:0 auto;padding:0 20px 40px;">
+    <div style="padding:28px 0 16px;display:flex;align-items:center;gap:10px;">
+      <button onclick="goTo('page-manage')" class="btn-ghost" style="padding:8px 12px;"><i class="fa-solid fa-arrow-left"></i></button>
+      <div>
+        <h1 style="font-size:22px;font-weight:900;color:#1a0505;">Accounts &amp; Access</h1>
+        <p style="font-size:12px;color:rgba(30,5,5,.6);">Verify profile updates and manage student, staff, organization, and group access.</p>
+      </div>
+    </div>
+    <div id="accountsBody"></div>
+  </div>
+</div>
+
+
+<div id="page-system" class="page">
+  <div style="max-width:1000px;margin:0 auto;padding:0 20px 40px;">
+    <div style="padding:28px 0 16px;display:flex;align-items:flex-start;gap:12px;">
+      <button onclick="goTo('page-manage')" class="btn-ghost" style="padding:8px 12px;flex-shrink:0;" aria-label="Back to management"><i class="fa-solid fa-arrow-left"></i></button>
+      <span style="display:grid;place-items:center;width:44px;height:44px;flex-shrink:0;border-radius:14px;color:#F5C518;background:linear-gradient(135deg,#8B1A1A,#6B1212);box-shadow:0 4px 16px rgba(139,26,26,.35);font-size:17px;"><i class="fa-solid fa-chart-line"></i></span>
+      <div style="min-width:0;">
+        <div class="breadcrumb"><i class="fa-solid fa-gear" style="margin-right:4px;"></i>Admin / Manage / System</div>
+        <h1 style="font-size:22px;font-weight:900;color:#1a0505;line-height:1.2;">Insights &amp; System <span style="font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#F5C518;background:linear-gradient(135deg,#8B1A1A,#6B1212);border-radius:99px;padding:3px 10px;vertical-align:middle;margin-left:6px;white-space:nowrap;">Super Admin</span></h1>
+        <p style="font-size:12px;color:rgba(30,5,5,.62);margin-top:4px;max-width:640px;">Service trends, assistant &amp; chatbot performance, 24-hour reminders, and guarded backup controls — everything measured in one place.</p>
+      </div>
+    </div>
+    <div id="systemBody"></div>
+  </div>
+</div>
+
+
 <div id="page-memo" class="page">
   <div style="max-width:900px;margin:0 auto;padding:0 20px 40px;">
     <div style="padding:28px 0 16px;display:flex;align-items:center;gap:10px;">
@@ -640,66 +708,18 @@
         <div style="width:32px;height:32px;flex-shrink:0;"><img src="/pup-seal.jpg" alt="PUP Seal" style="width:32px;height:32px;border-radius:50%;object-fit:cover;object-position:center;display:block;filter:drop-shadow(0 1px 3px rgba(139,26,26,.25));"></div>
         <div style="font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(30,5,5,.62);">PUP San Pedro &middot; Student Services Office</div>
       </div>
-      <div class="page-title">QR Scanner</div>
-      <div class="page-sub">Point the camera at a student's QR code to verify their document.</div>
+      <div class="page-title">Service Desk</div>
+      <div class="page-sub">Check in and serve today\'s appointments.</div>
     </div>
 
-    <div style="background: rgba(240,228,228,.7); border: 1px solid rgba(139,26,26,.15); border-radius: 20px; overflow: hidden; position: relative; height: 280px; margin-bottom: 15px;">
-    
-    
-    <div id="reader" style="width: 100%; height: 100%; position: absolute; inset: 0;"></div>
-
-    
-    <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;">
-        <div class="qr-scanner-frame">
-            <div class="qr-corner tl"></div>
-            <div class="qr-corner tr"></div>
-            <div class="qr-corner bl"></div>
-            <div class="qr-corner br"></div>
-        </div>
-    </div>
-
-</div>
-   
-<div style="text-align: center; margin-bottom: 20px;">
-    <button id="scanBtn" onclick="startScanner()" class="btn-maroon" style="padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-        <i class="fa-solid fa-camera" style="margin-right: 8px;"></i>Scan QR Code
-    </button>
-    <button id="stopBtn" onclick="stopScanner()" class="btn-ghost" style="padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; display: none; border-color: #ef4444; color: #ef4444; margin-left: 10px;">
-        <i class="fa-solid fa-stop" style="margin-right: 8px;"></i>Stop Camera
-    </button>
-</div>
-
-    
     <div class="glass-card" style="padding:20px;margin-bottom:16px;">
-      <div style="font-size:14px;font-weight:800;color:#1a0505;margin-bottom:4px;"><i class="fa-solid fa-magnifying-glass-chart" style="color:#8B1A1A;margin-right:7px;"></i>Verify by Reference</div>
-      <div style="font-size:11px;color:rgba(30,5,5,.6);margin-bottom:12px;">Enter a Request Ref (REQ-&hellip;) or Claiming Ref (CLM-&hellip;) to verify authenticity, view claim details, or complete a claim.</div>
+      <div style="font-size:14px;font-weight:800;color:#1a0505;margin-bottom:4px;"><i class="fa-solid fa-calendar-day" style="color:#8B1A1A;margin-right:7px;"></i>Appointments by Date</div>
+      <div style="font-size:11px;color:rgba(30,5,5,.6);margin-bottom:12px;">Confidential rows appear masked.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input id="verifyRefInput" class="glass-input" style="flex:1;min-width:200px;font-family:monospace;" placeholder="e.g. REQ-2026-042 or CLM-2026-00001" onkeydown="if(event.key==='Enter')verifyRef()">
-        <button onclick="verifyRef()" class="btn-maroon" style="padding:11px 20px;"><i class="fa-solid fa-shield-halved" style="margin-right:6px;"></i>Verify</button>
+        <input id="scannerDate" class="glass-input" style="flex:1;min-width:200px;" placeholder="e.g. September 26, 2026">
+        <button onclick="loadScannerQueue()" class="btn-maroon" style="padding:11px 20px;"><i class="fa-solid fa-rotate" style="margin-right:6px;"></i>Load</button>
       </div>
-      <div id="verifyRefResult" style="margin-top:12px;"></div>
-    </div>
-    <div id="scanResultValid" class="glass-card" style="display:none;padding:20px;border-color:rgba(34,197,94,.35);border-top-color:rgba(34,197,94,.5);">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-        <div style="width:40px;height:40px;border-radius:50%;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-check" style="color:#166534;font-size:16px;"></i></div>
-        <div><div style="font-size:15px;font-weight:900;color:#166534;">VALID QR CODE</div><div style="font-size:12px;color:rgba(30,5,5,.78);">Document verified successfully</div></div>
-      </div>
-      <div style="background:rgba(255,255,255,.6);border:1px solid rgba(139,26,26,.08);border-radius:12px;padding:14px;">
-        <div class="detail-row"><span class="detail-label">Student</span><span class="detail-value">Juan dela Cruz</span></div>
-        <div class="detail-row"><span class="detail-label">Student No.</span><span class="detail-value" style="font-family:monospace;font-size:12px;">2024-00123-SP-0</span></div>
-        <div class="detail-row"><span class="detail-label">Document</span><span class="detail-value">Excuse Slip</span></div>
-        <div class="detail-row"><span class="detail-label">Ref No.</span><span class="detail-value" style="font-family:monospace;font-size:12px;">REQ-2026-042</span></div>
-        <div class="detail-row"><span class="detail-label">Approved</span><span class="detail-value" style="color:#166534;">Jun 18, 2026</span></div>
-      </div>
-      <button onclick="markClaimed()" class="btn-maroon" style="width:100%;margin-top:14px;padding:12px;"><i class="fa-solid fa-box-archive" style="margin-right:8px;"></i>Mark as Claimed &amp; Close</button>
-    </div>
-    <div id="scanResultInvalid" class="glass-card" style="display:none;padding:20px;border-color:rgba(239,68,68,.35);border-top-color:rgba(239,68,68,.5);">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:40px;height:40px;border-radius:50%;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fa-solid fa-xmark" style="color:#991b1b;font-size:16px;"></i></div>
-        <div><div style="font-size:15px;font-weight:900;color:#991b1b;">INVALID QR CODE</div><div style="font-size:12px;color:rgba(30,5,5,.78);">This code could not be verified. It may be expired, tampered with, or already claimed.</div></div>
-      </div>
+      <div id="scannerQueueList" style="margin-top:12px;"></div>
     </div>
   </div>
 </div>
-

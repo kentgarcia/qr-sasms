@@ -7,7 +7,7 @@ import { masterlistValidationError } from "@/lib/masterlist-validation";
 
 
 export async function PATCH(req: NextRequest, { params }: { params: { sn: string } }) {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
 
   const sn = normSN(decodeURIComponent(params.sn));
@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { sn: string
   return NextResponse.json(updated);
 }
 export async function DELETE(req: NextRequest, { params }: { params: { sn: string } }) {
-  const auth = await requireSession(["admin"]);
+  const auth = await requireSession(["super_admin"]);
   if (auth instanceof NextResponse) return auth;
 
   const sn = normSN(decodeURIComponent(params.sn));

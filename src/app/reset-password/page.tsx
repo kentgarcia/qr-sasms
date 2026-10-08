@@ -49,7 +49,7 @@ export default function ResetPasswordPage() {
           <div style={{ width: 54, height: 54, margin: "0 auto 14px", borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(139,26,26,.76)", border: "1px solid rgba(245,197,24,.55)", color: "#F5C518", fontSize: 21 }}>
             <i className="fa-solid fa-lock" />
           </div>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(30,5,5,.65)", marginBottom: 6 }}>QR-SASMS</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", color: "rgba(30,5,5,.65)", marginBottom: 6 }}>STARS</div>
           <h1 style={{ fontSize: 23, fontWeight: 900, color: "#1a0505" }}>Reset password</h1>
           <p style={{ fontSize: 13, color: "rgba(30,5,5,.75)", marginTop: 8, lineHeight: 1.6 }}>Choose a new password for your account.</p>
         </div>

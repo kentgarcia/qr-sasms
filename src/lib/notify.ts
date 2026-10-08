@@ -22,7 +22,7 @@ export async function notifyStudentByEmail(opts: {
 }) {
   const to = await emailForStudent(opts.studentId);
   const template = await prisma.systemSetting.findUnique({ where: { key: "emailTemplate" } });
-  const text = (template?.value || "{{message}}\n\n— QR-SASMS").replaceAll("{{message}}", opts.message).replaceAll("{{name}}", opts.name).replaceAll("{{title}}", opts.title);
+  const text = (template?.value || "{{message}}\n\n— STARS").replaceAll("{{message}}", opts.message).replaceAll("{{name}}", opts.name).replaceAll("{{title}}", opts.title);
   const result = await sendMail({ to, subject: opts.title, text });
   const log = await prisma.emailLog.create({
     data: {

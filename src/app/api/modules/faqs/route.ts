@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, jsonError } from "@/lib/http";
 import { addAudit } from "@/lib/notify";
+import { UNSUPPORTED_PATTERN } from "@/lib/assistant";
 import { genId } from "@/lib/format";
 
 
@@ -39,6 +40,18 @@ export async function POST(req: NextRequest) {
 
   const created = await prisma.faq.create({ data: { id: genId("FAQ"), cat, q, a } });
   await addAudit("INFO", `FAQ added by ${auth.name}.`);
+
+  // Best-effort: keep the semantic index fresh. Never fails the request —
+  // a down Ollama is covered by POST /api/assistant/embeddings/rebuild.
+  try {
+    if (!UNSUPPORTED_PATTERN.test(`${q} ${a}`)) {
+      const { embedText, faqIndexText, upsertFaqEmbedding } = await import("@/lib/embeddings");
+      const vec = await embedText(faqIndexText({ cat, q }));
+      if (vec) await upsertFaqEmbedding(created.id, vec);
+    }
+  } catch {
+    // Ignore — keyword fallback + rebuild cover this path.
+  }
 
   return NextResponse.json(created, { status: 201 });
 }
