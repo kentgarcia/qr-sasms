@@ -1,250 +1,208 @@
-# STARS — Student Transaction and Appointment Request System
+<div align="center">
 
-Real, database-backed backend for the PUP San Pedro SSO document/service
-portal. The original frontend's visual design and markup are untouched
-(`src/content/body.html` is a byte-for-byte copy of the original `<body>`,
-`src/app/globals.css` is a byte-for-byte copy of the original `<style>`
-block) — only the JavaScript behind it was rewired from
-localStorage-mocked data to real API calls (`public/app.js`).
+<img src="./public/pup-seal-icon.png" alt="PUP San Pedro Campus Seal" width="110" />
 
- 
+# STARS — Student Transaction & Appointment Request System
 
-- **PostgreSQL via Prisma** — every entity (users,
-  appointments/queue (service-typed: Authentication, Excuse Slip, ID New/Lost,
-  Event, Psychological Intervention, General), referrals, ID applications,
-  bulletins, help desk tickets, FAQs, event requests, complaints, downloadable
-  forms, email blasts, audit log, email outbox, in-app notifications, SSO
-  masterlist) is a real table. See `prisma/schema.prisma`.
-  Document requests were retired: Authentication and Excuse Slips are booked
-  directly as appointments (purpose + copies captured at booking).
-- **Real authentication** — bcrypt-hashed passwords, httpOnly signed JWT
-  session cookie (`src/lib/auth.ts`). Sessions now survive a page refresh,
-  which the original prototype never did.
-- **Real email** — `src/lib/mailer.ts` sends via SMTP (Nodemailer) when
-  configured; otherwise it runs in a clearly-labeled SIMULATED mode and
-  still logs every attempt to the Email Outbox, exactly like the original.
-- **Real file uploads** — ID application receipts, event request
-  attachments, complaint attachments, and downloadable forms are written
-  to `public/uploads/` and served from a real URL (`src/lib/upload.ts`),
-  replacing the original's base64-in-localStorage approach.
-- **Server-side authorization** — every mutating action is re-validated
-  server-side by role (student/admin/scanner), and confidential data
-  (complaints, referrals, tickets, ID applications, event requests) is
-  scoped to the owning student or admin at the database query level, not
-  just hidden in the UI.
+**Official Student Services Office (SSO) Portal for Polytechnic University of the Philippines — San Pedro Campus**
 
-## Prerequisites
+[![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16_%2B_pgvector-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-5.20-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![License](https://img.shields.io/badge/Campus-PUP_San_Pedro-8B1A1A?style=for-the-badge)](#)
 
-- Node.js 18.18+ and npm
-- Docker (for the bundled Postgres), or your own PostgreSQL instance
+*Service-typed appointments · Signed offline QR passes & live camera scanner · Bidirectional request sync · Bilingual AI Support Assistant · 4-Role RBAC*
 
-This project was authored in a sandboxed environment with no package
-registry or Docker access, so it has **not** been `npm install`'d or
-run/built here — follow the steps below on your own machine.
+</div>
 
-## Setup
+---
 
-1. **Install dependencies**
+## ✨ Key Features
 
-   ```bash
-   npm install
-   ```
+| Module | What It Does |
+|---|---|
+| 📅 **Appointment & Queue System** | Service-typed bookings (`General Visit`, `Event Consultation`, `Psychological Intervention`) with per-service slot capacity, weekday/holiday rules, 24h reschedule/cancel cutoff, max 2 reschedules, and race-safe Postgres advisory locks. |
+| 🔄 **Bidirectional Transaction Sync** | Request-first services (`Student ID New/Lost`, `Authentication`, `Excuse Slip`) automatically generate a synced `APT-###` queue entry when SSO schedules a pickup — serving the appointment completes both records atomically. |
+| 📱 **Offline Signed QR Pass & Live Scanner** | Every confirmed appointment and pickup produces a tamper-evident HMAC-SHA256 QR pass (`STARS1\|code\|sn\|dateISO\|hmac8`) — downloadable as PNG, printable, and embedded directly in confirmation/pickup emails. Staff verify via camera (`html5-qrcode`) or manual lookup on the Service Desk. |
+| 🤖 **AI Support Assistant** | Bilingual (English, Tagalog, Taglish) rule + FAQ + optional `pgvector` semantic assistant with live student status lookups (`APT-`, `AUT-`, `EXC-`, `GEN-`, `IDA-`, `EVT-`, `TKT-`), rich contextual action pills (`Show QR Pass`, `Reschedule`, filtered navigation, prefilled Help Desk tickets), safety rails (TOR, billing, confidentiality), thumbs feedback, and an Admin Training Playground. |
+| 🔐 **Hardened Auth & 4-Role RBAC** | `bcryptjs` password hashing, `httpOnly` signed JWT cookies (`jose`), strict strong-password enforcement (9+ chars with uppercase, lowercase, number, and special character), masterlist verification, 6-digit email/Gmail OTP registration, and strict server-side role scoping across `STUDENT`, `ADMIN`, `SUPER_ADMIN`, and `SCANNER`. |
+| ⚡ **Real-Time Portal & Dashboard UX** | Live Server-Sent Events (`/api/events`), consistent `Asia/Manila` (PHT) timezone formatting, URL hash + `sessionStorage` tab persistence on browser refresh, interactive Student & Admin KPI shortcut cards, and a Super Admin-configurable PUP San Pedro login splash screen. |
+| 🏢 **Full SSO Operations Suite** | Student ID Applications, Authentication & Excuse Slips, Organization & Event Requests (org-rep gated), Confidential Psychological Referrals & Complaints, Bulletins, Downloadable Forms, Help Desk Tickets, Masterlist CSV Import, Analytics & CSV Exports, Email Outbox/Blasts, and Full DB Backup & Restore. |
 
-2. **Start Postgres** (skip if you already have one — just point
-   `DATABASE_URL` at it in step 3)
+---
 
-   ```bash
-   docker compose up -d
-   ```
+## 👥 Role-Based Access Control (4 Roles)
 
-3. **Configure environment**
+| Role | Access Scope |
+|---|---|
+| **Student** | Dashboard KPI shortcuts, Book/Request services, My Appointments & Offline QR Pass, ID Applications, Event Requests (active org reps only), Referrals, Complaints, Bulletins, Forms, AI Support Assistant, Help Desk Tickets, Account & Profile Change requests. |
+| **Scanner** | Service Desk live camera QR scanner + manual code verification, daily appointment manifest (with `PSYCH` details masked as `Reserved — Confidential`), Check-in / Serve / No-Show actions. |
+| **Admin** | Operational dashboard, Appointment approval & queue management, Service Request & ID pickup scheduling, Referrals, Complaints, Events, Help Desk replies/closing, Bulletins, FAQ Manager & AI Training Playground, Forms, Audit Log, Email Outbox. |
+| **Super Admin** | All Admin capabilities **plus** Masterlist Manager, Accounts & Access (approvals, staff management, profile verifications), Organizations & Reps, System Settings (hours, per-service capacity, holidays, splash image, AI thresholds), Email Blasts, Insights & Analytics, CSV Exports, and Database Backup & Restore. |
 
-   ```bash
-   cp .env.example .env
-   ```
+> All Super Admin routes are both hidden in the UI **and** enforced with `403 FORBIDDEN` on the server. Confidential records (`Referral`, `Complaint`, `Ticket`, `IdApplication`, `EventRequest`) are scoped to the owning student or authorized staff at the database query level.
 
-   Edit `.env`:
-   - `AUTH_SECRET` — set to any long random string (`openssl rand -base64 48`).
-   - `DATABASE_URL` — already points at the docker-compose Postgres by default.
-   - `SMTP_*` — optional. Leave blank to run in SIMULATED email mode (safe
-     default, no external setup needed). Fill in real SMTP credentials
-     (Gmail app password, SendGrid, etc.) to send real email.
+---
 
-4. **Create the database schema and seed demo data**
+## 🛠️ Tech Stack
 
-   ```bash
-   npx prisma migrate dev --name init
-   npx prisma db seed
-   ```
+- **Framework:** Next.js 14 (App Router), React 18, TypeScript 5.6
+- **Database & ORM:** PostgreSQL 16 (`pgvector/pgvector:pg16`) + Prisma 5.20
+- **Authentication & Crypto:** `jose` (HS256 JWT in `httpOnly` cookies), `bcryptjs`, Node `crypto` (HMAC-SHA256 QR signatures)
+- **QR Generation & Scanning:** `qrcode` (server PNG/data-URL + email CID attachments), `html5-qrcode` (live camera scanner)
+- **Email Delivery:** Nodemailer SMTP (or built-in `SIMULATED` outbox mode when SMTP vars are unset)
+- **AI Search (Optional Semantic):** Ollama embeddings (`all-MiniLM-L6-v2`) + Postgres `pgvector` cosine search with automatic rule + keyword fallback
 
-5. **Run it**
+---
 
-   ```bash
-   npm run dev
-   ```
+## 🚀 Quick Start (Local Development)
 
-   Open http://localhost:3000.
+### Prerequisites
+- **Node.js** `18.18+` (recommended `20.x`) and `npm`
+- **Docker** (for the bundled `pgvector` PostgreSQL 16 container), or an existing PostgreSQL instance
 
-## Deploy to Render
-
-This repository includes `render.yaml`. In Render, choose **New** → **Blueprint**
-and select this GitHub repository. Render will create both the web service and a
-PostgreSQL database automatically.
-
-Before the first deploy, set these service environment variables in Render:
-
-- `NEXT_PUBLIC_APP_URL` — the final Render URL, for example
-  `https://stars.onrender.com`. This is required for password-reset links.
-- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` — only if real email
-  delivery is needed. Leave them blank to use the built-in simulated email mode.
-
-The Render build command syncs the current Prisma schema and runs the idempotent
-demo seed once safely. The default first-login accounts are listed below; change
-their passwords immediately after deployment.
-
-> Render's free disk is ephemeral. Files uploaded to the application can be lost
-> after a redeploy or restart. Use an external object-storage service before using
-> the system in production for real student files.
-
-## Demo logins (created by the seed script)
-
-| Role        | Username                                        | Password            |
-|-------------|-------------------------------------------------|---------------------|
-| Student     | `2024-00123-SP-0` (or `student@pup.edu.ph`)     | `student123`        |
-| Admin       | `admin@pup.edu.ph`                              | `Admin@2026!`       |
-| Super Admin | `superadmin@pup.edu.ph`                         | `SuperAdmin@2026!`  |
-| Scanner     | `scanner@pup.edu.ph`                            | `scan2026`          |
-
-### Admin vs Super Admin
-
-Normal **Admin** accounts get the operational tools: dashboard (queue,
-audit, email outbox), service requests, and bulletin/FAQ/forms managers.
-**Super Admin** adds the restricted tools, which are hidden from normal
-admins in the UI **and** rejected with `403 FORBIDDEN` at the API:
-Records (Masterlist Manager, Accounts & Access incl. verifications and
-account approvals), staff accounts, student registry, organizations,
-masterlist groups, System Settings, Email Blast, Insights & System
-(analytics, CSV exports, reminders), and Backup & Restore. Full matrix:
-`docs/admin-superadmin-separation-spec.md`.
-
-> Reseeding an older database migrates the legacy `admin@pup.edu.ph`
-> account to the normal Admin role after ensuring a Super Admin exists,
-> so the system is never left without one. For production, create the
-> real Super Admin with `npm run bootstrap:admin`
-> (`BOOTSTRAP_SUPER_ADMIN_EMAIL` / `BOOTSTRAP_SUPER_ADMIN_PASSWORD`)
-> instead of using the demo credentials. Change all demo passwords
-> immediately after deployment.
-
-The seed also imports a small masterlist (including one **unregistered**
-student, `2024-00200-SP-0` / Carla Dizon) so you can test the full
-"Create Account" → "Awaiting admin approval" → admin approves →
-sign in" flow end to end. It also seeds an approval inbox (`APT-008` /
-`APT-010` awaiting review), a General Visit bundle (`APT-007` ↔
-`GEN-SEED01`), a pickup demo (`EXC-SEED01`), an org-rep student
-(`2024-00102-SP-0` / Pedro Reyes) with a seeded organization, and
-system settings — so the appointment, pickup, event, and settings
-workflows are walkable on a fresh database with no manual setup
-(full matrix: `docs/seed-data-enhancement-spec.md`).
-
-## AI assistant — adding knowledge
-
-The student chatbot answers from two knowledge kinds. Full design:
-`docs/ai-assistant-ticket-escalation-spec.md` (matching + escalation) and
-`docs/ai-assistant-conversational-ux-spec.md` (tone, intents, guidance).
-
-**1. Verified FAQs (the knowledge base).** Sign in as Admin → **FAQ
-Manager** → pick a category → **Add FAQ**. Each entry needs a natural
-question title and a self-contained answer:
-- Write process answers as **numbered steps ending with the outcome**
-  (e.g. "1. Open Appointments → Book Appointment. 2. Choose Excuse Slip…
-  3. … Bring supporting documents to your visit."). The chatbot quotes
-  answers verbatim and appends a deep-link button.
-- The **category decides the button**: Appointments → Open Appointments,
-  ID → Open ID Application, Events → Open Event Requests, document /
-  request / service → Open Appointments (filing lives on the Book
-  Appointment page; tracking under My Appointments). Put the entry in
-  the matching category or the fallback buttons appear.
-- You don't need to add every wording — semantic search handles
-  paraphrases ("Where do I file my excuse slip?" matches "How do I request
-  an Excuse Slip?"). Add a new FAQ only when students ask something
-  uncovered.
-- Transcript of Records (TOR) entries are rejected — this portal does not
-  handle TOR, and the chatbot will never answer it.
-- Saving is live immediately. If Ollama was down when you saved, re-index
-  with `POST /api/assistant/embeddings/rebuild` (admin) once it's back.
-
-**2. Unanswered questions → new FAQs (curation loop).** FAQ Manager shows
-**"Questions needing answers"** — real student questions the bot couldn't
-answer, with ask counts, a suggested category, and a warning when an
-existing FAQ may already cover them. Click **Answer as FAQ**, write the
-answer, save. Repeat questions then match the new entry and the cluster
-clears on its own.
-
-**3. Small talk, word recognition & transaction rules (code, not database).** Greetings, thanks,
-farewells, and "what can you do" are recognized from phrase lists in
-`src/lib/assistant-words.ts` (normalizer, EN+TL synonyms, typo repair, starter intents) — adding a variant (e.g. another Tagalog
-greeting) is a one-line change there. Deterministic process guidance for every SSO transaction
-(appointments, request-only lanes, reschedule/cancel, ID new/lost, events/org-rep, referrals,
-complaints, tickets, bulletins, forms, account, office hours) lives in `src/lib/assistant-rules.ts`
-as `{needs, wants, phrases}` rules with curated numbered-step replies. Rule-authoring convention:
-`needs` = tokens that must ALL be present (canonical, post-synonym), `wants` = scoring bonus
-(include the self-token so bare mentions guide instead of falling back), `phrases` = multi-word
-triggers checked against the normalized message. The servant-voice rules live next to
-them; verified answers and the safety fallback are never reworded by the
-bot.
-
-**4. Follow-ups remember the conversation (no setup).** Within one chat,
-the bot resolves `it`, `the first one`, `yes` (after a clarification
-question), and `the other one` from the session's own recent messages —
-scoped to that student only, and explicit reference codes always win.
-Pronouns with no prior context are never guessed. Full design:
-`docs/ai-assistant-improvement-spec.md` (F-1).
-
-**5. Feedback loop (👍/👎 + curation v2).** Every bot answer carries
-thumbs up/down; re-tapping removes the vote. Super Admin →
-**Insights & System** shows the down-rate, worst-rated FAQs/rules, and
-per-pill taps. FAQ Manager's curation queue additionally surfaces
-rule/synonym suggestions (near-miss clusters), rules with zero hits in 30
-days, settings-drift warnings (e.g. cutoff or office hours changed after
-the reply text was written), and 👎-heavy answers first.
-
-**6. Tuning.** Super Admin → **System Settings → AI Assistant**: keyword
-high score plus semantic high/medium similarity. Lower values answer more
-(risking misses); higher values escalate to support tickets more often.
-Semantic matching needs Ollama running (`OLLAMA_BASE_URL`,
-`ASSISTANT_EMBED_MODEL` in `.env`) — without it the bot runs in keyword
-mode automatically. Rule answers are logged as `FAQ_CHATBOT_QUERY:rule:<id>`
-and count as answered/high; safety rails (TOR guard, referral/complaint
-confidentiality, billing notice) always run before rules and are never
-bypassed. Full design: `docs/ai-assistant-rulebased-chatbot-spec.md`.
-
-## Project layout
-
-```
-prisma/schema.prisma      All database models
-prisma/seed.ts            Demo data (users, requests, queue, FAQs, masterlist)
-src/lib/                  auth, prisma client, mailer, notifications, uploads, formatting,
-                      assistant (chatbot matching in assistant.ts, status reads in
-                      assistant-data.ts, word recognition in assistant-words.ts,
-                      transaction rules in assistant-rules.ts, curation in
-                      assistant-curation.ts, embeddings in embeddings.ts)
-src/app/api/**            Every REST endpoint the frontend calls
-src/app/layout.tsx         Original <head> (fonts, CDN scripts, stylesheet)
-src/app/globals.css        Original <style> block, copied verbatim
-src/content/body.html      Original <body> markup, copied verbatim
-src/app/page.tsx           Renders body.html + loads public/app.js
-public/app.js              Rewired client logic (real fetch calls, same UI)
-public/uploads/            Uploaded files land here at runtime
+### 1. Install dependencies
+```bash
+npm install
 ```
 
-## Notes / deliberate deviations from the prototype
+### 2. Start PostgreSQL (`pgvector`)
+```bash
+docker compose up -d db
+```
 
-- **Session persistence**: the original never restored a session on
-  reload. This build restores it from the signed cookie via `/api/auth/me`.
-- **Service Desk page** (scanner role): with document claims retired, the old
-  QR-scanner claim flow was removed. Scanners now work the day's appointment
-  manifest (check-in / serve), with confidential rows masked.
-- **Removed** the unused EmailJS CDN `<script>` tag reference from the
-  `<head>` — email is sent from the server now, so the client-side EmailJS
-  SDK is no longer loaded. This is the only non-visual line removed from
-  the original file.
+### 3. Configure environment variables
+```bash
+cp .env.example .env
+```
+Update `.env` with your local values (at minimum `AUTH_SECRET` and `DATABASE_URL`):
+```bash
+openssl rand -base64 48   # generate a strong AUTH_SECRET
+```
+
+### 4. Apply migrations & seed demo data
+```bash
+npx prisma migrate deploy
+npm run prisma:seed
+```
+
+### 5. Run the development server
+```bash
+npm run dev
+```
+Open **http://localhost:3000** in your browser.
+
+---
+
+## 🔑 Seeded Demo Accounts
+
+Running `npm run prisma:seed` populates realistic demo data (24 system FAQs across 7 categories, masterlist entries including an unregistered student `2024-00200-SP-0` for OTP registration testing, an org-rep student `2024-00102-SP-0`, pending bookings, and sample requests):
+
+| Role | Email / Student Number | Password |
+|---|---|---|
+| **Student** | `student@pup.edu.ph` or `2024-00123-SP-0` | `student123` |
+| **Admin** | `admin@pup.edu.ph` | `Admin@2026!` |
+| **Super Admin** | `superadmin@pup.edu.ph` | `SuperAdmin@2026!` |
+| **Scanner** | `scanner@pup.edu.ph` | `scan2026` |
+
+> ⚠️ **Production Note:** Use `npm run bootstrap:admin` (`BOOTSTRAP_SUPER_ADMIN_EMAIL` / `BOOTSTRAP_SUPER_ADMIN_PASSWORD`) to provision your production Super Admin, and change or remove all demo accounts immediately after deployment.
+
+---
+
+## ⚙️ Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | **Yes** | PostgreSQL connection string (defaults to local Docker Postgres). |
+| `AUTH_SECRET` | **Yes** | Random secret used to sign JWT sessions and appointment QR HMAC payloads. |
+| `NEXT_PUBLIC_APP_URL` | Prod | Public base URL (e.g. `https://stars.onrender.com`) for password-reset links. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Optional | SMTP server config (e.g. `smtp.gmail.com`, `587`, `false`). Leave unset for `SIMULATED` mode. |
+| `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Optional | SMTP credentials (e.g. Gmail App Password) for live OTPs, confirmations, and embedded QR emails. |
+| `OLLAMA_BASE_URL`, `ASSISTANT_EMBED_MODEL` | Optional | Enables semantic `pgvector` FAQ search; omits cleanly to rule + keyword mode when unset. |
+| `CRON_SECRET` | Optional | Bearer secret protecting `POST /api/cron/reminders`. |
+| `BOOTSTRAP_SUPER_ADMIN_*` | Prod | Initial Super Admin email, password, and name for `npm run bootstrap:admin`. |
+
+---
+
+## 🤖 Managing & Training the AI Assistant
+
+1. **Knowledge Base (24 Seeded FAQs):** Sign in as Admin → **FAQ** to add/edit FAQs across 7 categories. FAQ matching automatically uses the bilingual synonym + typo-repair pipeline in `src/lib/assistant-words.ts`.
+2. **Admin Training Playground:** Use the **AI Chatbot Training Playground** at the top of the Admin **FAQ** page (`POST /api/assistant/simulate`) to dry-run any English, Tagalog, or Taglish query and inspect the matched stage, rule ID, FAQ ID, confidence, and tokens.
+3. **Unanswered & Feedback Curation:** Review low-confidence and thumbs-down (`👎`) clusters in FAQ Manager and promote them to verified FAQs. Rebuild vector embeddings anytime via `POST /api/assistant/embeddings/rebuild`.
+4. **Safety Rails (Always Enforced):** Transcript of Records (`TOR`) inquiries, billing/tuition inquiries, and confidential `REF-`/`CMP-` references are intercepted before retrieval and never leak private records.
+5. **Automated Evaluation Harness:**
+   ```bash
+   npx tsx scripts/eval-assistant.ts
+   ```
+   Verifies **51 labeled EN/Tagalog/Taglish/typo/safety test cases** (target: ≥90% accuracy, 0 safety violations — currently **51/51 = 100%**).
+
+---
+
+## ☁️ Deploying to Render
+
+This repository includes a ready-to-use [`render.yaml`](./render.yaml) Blueprint:
+
+1. In Render, select **New → Blueprint** and connect this GitHub repository.
+2. Render provisions both the Node.js web service and PostgreSQL database automatically, running:
+   ```bash
+   npm ci && npx prisma migrate deploy && npm run bootstrap:admin && npm run build
+   ```
+3. Configure `NEXT_PUBLIC_APP_URL`, `BOOTSTRAP_SUPER_ADMIN_*`, and optional `SMTP_*` variables in the Render dashboard.
+4. *(Optional)* For semantic FAQ search on Render Postgres, run `CREATE EXTENSION IF NOT EXISTS vector;` once on the database.
+
+> Note: Uploaded files are persisted in PostgreSQL (`UploadedFile` table) and served via `/api/uploads/[file]`, so uploads survive ephemeral container restarts on Render.
+
+---
+
+## 📜 Useful Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start Next.js development server (`http://localhost:3000`) |
+| `npm run build` | Compile, typecheck, and build production bundle |
+| `npm start` | Start production Next.js server |
+| `npm run lint` | Run ESLint checks |
+| `npx prisma migrate deploy` | Apply all Prisma SQL migrations |
+| `npm run prisma:seed` | Idempotently seed demo users, masterlist, requests, and 24 FAQs |
+| `npm run bootstrap:admin` | Create or update the production Super Admin account |
+| `npx tsx scripts/eval-assistant.ts` | Run the 51-case AI chatbot accuracy & safety evaluation suite |
+
+---
+
+## 📂 Project Structure
+
+```text
+├── prisma/
+│   ├── schema.prisma              # PostgreSQL + pgvector data models (incl. EmailOtp)
+│   ├── migrations/                # Versioned SQL migrations
+│   ├── seed.ts                    # Idempotent demo data & 24 system-aligned FAQs
+│   └── bootstrap-super-admin.ts   # Production Super Admin bootstrap script
+├── public/
+│   ├── app.js                     # Client portal logic (SPA nav, SSE, QR scanner, chatbot UI)
+│   ├── pup-seal.jpg               # PUP San Pedro official seal
+│   └── pup-san-pedro-campus.svg   # Default PUP San Pedro Campus login splash artwork
+├── scripts/
+│   └── eval-assistant.ts          # 51-case automated AI chatbot evaluation harness
+├── src/
+│   ├── app/
+│   │   ├── api/                   # REST endpoints (auth, OTP, queue, QR, scan, modules, assistant, settings)
+│   │   ├── forgot-password/       # Password reset request page
+│   │   ├── reset-password/        # Strong-password reset page with live checklist
+│   │   ├── globals.css            # Glassmorphism theme & responsive layout styles
+│   │   ├── layout.tsx             # Root layout, fonts & script loaders
+│   │   └── page.tsx               # Portal shell loader
+│   ├── content/
+│   │   └── body.html              # Portal page templates (Auth, Student, Admin, Scanner, Settings)
+│   └── lib/
+│       ├── appointments.ts        # Slot validation (Asia/Manila), locks & bidirectional sync
+│       ├── assistant*.ts          # NLP words, rules, pills, SIS data reader, curation & embeddings
+│       ├── auth.ts                # JWT session cookies & bcrypt helpers
+│       ├── format.ts              # Asia/Manila date/time formatters
+│       ├── mailer.ts              # SMTP / simulated email transport (HTML + QR attachments)
+│       ├── notify.ts              # Student email notifications (with embedded QR) & audit logs
+│       ├── password.ts            # Shared strong-password validator (9+ chars + symbol)
+│       └── signature.ts           # Document & offline appointment QR HMAC-SHA256 signing
+├── docker-compose.yml             # Local pgvector PostgreSQL 16 database
+└── render.yaml                    # Render Blueprint deployment config
+```
