@@ -4,6 +4,7 @@ import { requireSession, jsonError } from "@/lib/http";
 import { addAudit, addNotification, notifyStudentByEmail } from "@/lib/notify";
 import { withTs } from "@/lib/format";
 import { pushRequestHistory, requestServiceLabel } from "@/lib/service-requests";
+import { completePickupQueueEntry, upsertPickupQueueEntry } from "@/lib/appointments";
 
 /**
  * Pickup leg for Authentication / Excuse Slip (spec §2):
@@ -32,9 +33,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return jsonError(409, "Only requests with a scheduled pickup can be marked as picked up.", "INVALID_STATUS");
     }
     const history = pushRequestHistory(existing.history, { status: "Completed", by: auth.name, note: "Picked up" });
-    const updated = await prisma.serviceRequest.update({
-      where: { id },
-      data: { status: "Completed", pickedUpAt: new Date(), history },
+    const updated = await prisma.$transaction(async (tx) => {
+      const row = await tx.serviceRequest.update({
+        where: { id },
+        data: { status: "Completed", pickedUpAt: new Date(), history },
+      });
+      await completePickupQueueEntry(tx, id);
+      return row;
     });
     await addAudit("INFO", `${label} request ${id} picked up (completed) — recorded by ${auth.name}.`);
     await notifyStudentByEmail({
@@ -62,23 +67,54 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
   }
 
-  const history = pushRequestHistory(existing.history, {
-    status: "Pickup Scheduled",
-    by: auth.name,
-    note: `${pickupDate} ${pickupTime}`.trim(),
-  });
-  const updated = await prisma.serviceRequest.update({
-    where: { id },
-    data: { pickupDate, pickupTime, pickupNote, status: "Pickup Scheduled", history },
+  const serviceKey = existing.service === "EXCUSE_SLIP" ? "EXCUSE" : "AUTH";
+  const { updated, queueEntry } = await prisma.$transaction(async (tx) => {
+    const qe = await upsertPickupQueueEntry(tx, {
+      service: serviceKey,
+      linkedId: id,
+      studentId: existing.sn,
+      studentName: existing.name,
+      pickupDate,
+      pickupTime,
+      pickupNote,
+      bookedBy: auth.name,
+    });
+    const history = pushRequestHistory(existing.history, {
+      status: "Pickup Scheduled",
+      by: auth.name,
+      note: `${pickupDate} ${pickupTime}${qe ? ` (${qe.code})` : ""}`.trim(),
+    });
+    const row = await tx.serviceRequest.update({
+      where: { id },
+      data: {
+        pickupDate,
+        pickupTime,
+        pickupNote,
+        status: "Pickup Scheduled",
+        ...(qe ? { appointmentCode: qe.code } : {}),
+        history,
+      },
+    });
+    return { updated: row, queueEntry: qe };
   });
 
-  await addAudit("INFO", `${label} request ${id} pickup scheduled (${pickupDate} ${pickupTime}) by ${auth.name}.`);
+  await addAudit("INFO", `${label} request ${id} pickup scheduled (${pickupDate} ${pickupTime}${queueEntry ? `, ${queueEntry.code}` : ""}) by ${auth.name}.`);
   await notifyStudentByEmail({
     studentId: existing.sn,
     name: existing.name,
     title: `${label} — Pickup Scheduled`,
-    message: `Your ${label} request (${id}) is ready! Please pick it up at the SSO on ${pickupDate} at ${pickupTime}.${pickupNote ? `\n\nNote: ${pickupNote}` : ""}`,
+    message: `Your ${label} request (${id}) is ready! Please pick it up at the SSO on ${pickupDate} at ${pickupTime}.${queueEntry ? ` Appointment code: ${queueEntry.code}.` : ""}${pickupNote ? `\n\nNote: ${pickupNote}` : ""}`,
     ref: id,
+    qrAppointment: queueEntry
+      ? {
+          code: queueEntry.code,
+          studentId: existing.sn,
+          dateISO: queueEntry.dateISO || "",
+          dateLabel: pickupDate,
+          time: pickupTime,
+          serviceLabel: `${label} Pickup`,
+        }
+      : null,
   });
   await addNotification(existing.sn, `${label} Pickup Scheduled`, `Your ${label} request is ready for pickup on ${pickupDate} at ${pickupTime}.`);
 

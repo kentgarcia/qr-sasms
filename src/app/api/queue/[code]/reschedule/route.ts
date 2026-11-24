@@ -15,6 +15,8 @@ import {
   serviceLabel,
   slotCapacity,
   serviceOfferedOn,
+  syncAppointmentFieldsToLinked,
+  dateISOPHT,
   validAppointmentDate,
   withSlotLock,
   APPOINTMENT_SERVICES,
@@ -74,14 +76,23 @@ export async function POST(req: NextRequest, { params }: { params: { code: strin
       if (taken >= capacity) {
         throw Object.assign(new Error("That time slot is full."), { statusCode: 409, code: "TIME_SLOT_TAKEN" });
       }
-      return tx.queueEntry.update({
+      const res = await tx.queueEntry.update({
         where: { code },
         data: {
-          dateLabel, time, status: "RESCHEDULED",
+          dateLabel, time, dateISO: dateISOPHT(dateLabel), status: "RESCHEDULED",
           slotStartAt: slotStart, slotEndAt: new Date(slotStart.getTime() + durationMin * 60000),
           rescheduleCount: { increment: 1 },
         },
       });
+      await syncAppointmentFieldsToLinked(tx, {
+        service,
+        linkedId: entry.serviceRefId,
+        code,
+        dateLabel,
+        time,
+        slotStart,
+      });
+      return res;
     });
     const discreet = service === "PSYCH";
     await addAudit("INFO", discreet

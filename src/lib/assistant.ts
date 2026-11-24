@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { analyzeMessage, WORD_STOP_WORDS } from "./assistant-words";
 
 // Phase 0 of docs/ai-assistant-ticket-escalation-spec.md.
 //
@@ -12,8 +13,8 @@ import { prisma } from "./prisma";
 // the client renders whatever `reply` the server returns, so there is
 // exactly one place where fallback wording can drift.
 export const ASSISTANT_FALLBACK_MESSAGE =
-  "I don't have enough information to answer that accurately.\n\n" +
-  "You can create a support ticket and the appropriate office will be able to assist you.";
+  "I don't have enough verified information to answer that accurately.\n\n" +
+  "Tap **Create Support Ticket** below and I'll prefill your question so PUP San Pedro SSO staff can assist you directly, or try one of the quick actions.";
 
 // Mirrors the guard in GET/POST /api/modules/faqs: Transcript of Records
 // is not handled by this system, so TOR content must never be matched.
@@ -36,17 +37,14 @@ const GENERIC_KEYWORDS = new Set(["request", "service", "student"]);
 export type AssistantLink = { label: string; target: string };
 
 const CATEGORY_LINKS: Array<{ match: RegExp; links: AssistantLink[] }> = [
-  { match: /appoint/i, links: [{ label: "Open Appointments", target: "page-appointment" }] },
+  { match: /appoint|qr|scanner/i, links: [{ label: "Open Appointments", target: "page-appointment" }] },
   { match: /\bid\b|identification/i, links: [{ label: "Open ID Application", target: "page-idapp" }] },
   { match: /event/i, links: [{ label: "Open Student Bulletin", target: "page-bulletin" }] },
   {
-    // Document/request answers route to the current student funnel: filing
-    // happens on the Book Appointment page, tracking in My Appointments.
-    // (page-requests "Authentication, Excuse Slip & Visits" is legacy —
-    // it is not in the student sidebar.)
     match: /document|request|authentication|excuse|visit|service/i,
     links: [{ label: "Open Appointments", target: "page-appointment" }],
   },
+  { match: /account|security|password|profile/i, links: [{ label: "Open Account", target: "page-account" }] },
 ];
 
 export function linksForCategory(cat: string): AssistantLink[] {
@@ -89,20 +87,37 @@ function stem(word: string): string {
   return word;
 }
 
+const SHORT_DOMAIN_WORDS = new Set(["id", "qr", "or", "sn"]);
+
 export function extractKeywords(value: string): string[] {
-  const words = String(value || "").toLowerCase().match(/[a-z0-9]{3,}/g) || [];
-  return [...new Set(words.map(stem).filter((w) => !STOP_WORDS.has(w)))];
+  const raw = String(value || "").toLowerCase().match(/[a-z0-9]{2,}/g) || [];
+  const rawKept = raw
+    .filter((w) => w.length >= 3 || SHORT_DOMAIN_WORDS.has(w))
+    .map(stem)
+    .filter((w) => !STOP_WORDS.has(w) && !WORD_STOP_WORDS.has(w));
+  // Union with canonical normalized/synonym/typo-repaired tokens from assistant-words
+  // so admin-authored FAQs automatically match Tagalog, Taglish, and typo queries.
+  const analysis = analyzeMessage(value);
+  const canonical = analysis.tokens.filter(
+    (w) => (w.length >= 3 || SHORT_DOMAIN_WORDS.has(w)) && !STOP_WORDS.has(w) && !WORD_STOP_WORDS.has(w)
+  );
+  return [...new Set([...rawKept, ...canonical])];
 }
 
 export function scoreFaq(faq: FaqRow, keywords: string[]): number {
   const q = String(faq.q || "").toLowerCase();
   const a = String(faq.a || "").toLowerCase();
   const cat = String(faq.cat || "").toLowerCase();
-  return keywords.reduce(
-    (score, word) =>
-      score + (q.includes(word) ? 3 : 0) + (cat.includes(word) ? 2 : 0) + (a.includes(word) ? 1 : 0),
-    0
-  );
+  const qTokens = new Set((q.match(/[a-z0-9]{2,}/g) || []).map(stem));
+  const aTokens = new Set((a.match(/[a-z0-9]{2,}/g) || []).map(stem));
+  const catTokens = new Set((cat.match(/[a-z0-9]{2,}/g) || []).map(stem));
+  return keywords.reduce((score, word) => {
+    const isShort = word.length <= 2;
+    const hitQ = isShort ? qTokens.has(word) : q.includes(word);
+    const hitCat = isShort ? catTokens.has(word) : cat.includes(word);
+    const hitA = isShort ? aTokens.has(word) : a.includes(word);
+    return score + (hitQ ? 3 : 0) + (hitCat ? 2 : 0) + (hitA ? 1 : 0);
+  }, 0);
 }
 
 export function minimumScoreFor(keywords: string[]): number {

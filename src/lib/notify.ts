@@ -1,7 +1,16 @@
+import QRCode from "qrcode";
 import { prisma } from "./prisma";
-import { sendMail } from "./mailer";
+import { sendMail, type MailAttachment } from "./mailer";
 import { normSN } from "./format";
+import { buildAppointmentQrPayload } from "./signature";
 
+function escHtml(s: string): string {
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 export async function emailForStudent(studentId: string): Promise<string | null> {
   const sn = normSN(studentId);
@@ -12,6 +21,14 @@ export async function emailForStudent(studentId: string): Promise<string | null>
   return null;
 }
 
+export type EmailQrAppointment = {
+  code: string;
+  studentId: string;
+  dateISO: string;
+  dateLabel: string;
+  time: string;
+  serviceLabel?: string;
+};
 
 export async function notifyStudentByEmail(opts: {
   studentId: string;
@@ -19,11 +36,53 @@ export async function notifyStudentByEmail(opts: {
   title: string;
   message: string;
   ref: string;
+  qrAppointment?: EmailQrAppointment | null;
 }) {
   const to = await emailForStudent(opts.studentId);
   const template = await prisma.systemSetting.findUnique({ where: { key: "emailTemplate" } });
-  const text = (template?.value || "{{message}}\n\n— STARS").replaceAll("{{message}}", opts.message).replaceAll("{{name}}", opts.name).replaceAll("{{title}}", opts.title);
-  const result = await sendMail({ to, subject: opts.title, text });
+  const text = (template?.value || "{{message}}\n\n— STARS")
+    .replaceAll("{{message}}", opts.message)
+    .replaceAll("{{name}}", opts.name)
+    .replaceAll("{{title}}", opts.title);
+
+  let html: string | undefined;
+  let attachments: MailAttachment[] | undefined;
+
+  if (opts.qrAppointment) {
+    try {
+      const qa = opts.qrAppointment;
+      const payload = buildAppointmentQrPayload(qa.code, qa.studentId, qa.dateISO);
+      const pngBuffer = await QRCode.toBuffer(payload, {
+        width: 240,
+        margin: 2,
+        errorCorrectionLevel: "M",
+        color: { dark: "#1a0505", light: "#ffffff" },
+      });
+      attachments = [
+        {
+          filename: `STARS-${qa.code}-QR.png`,
+          content: pngBuffer,
+          cid: "appointment-qr",
+          contentType: "image/png",
+        },
+      ];
+      html = `
+        <div style="font-family:Inter,Arial,sans-serif;color:#1a0505;max-width:520px;margin:0 auto;line-height:1.55;">
+          <p style="white-space:pre-line;">${escHtml(text)}</p>
+          <div style="margin-top:18px;padding:18px;border:1px solid #d9b8b8;border-radius:14px;background:#fffaf4;text-align:center;">
+            <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8B1A1A;margin-bottom:8px;">Offline Appointment QR Pass</div>
+            <img src="cid:appointment-qr" width="200" height="200" alt="QR Pass for ${escHtml(qa.code)}" style="display:block;margin:0 auto;border-radius:8px;background:#fff;padding:6px;border:1px solid #eee;" />
+            <div style="font-size:22px;font-weight:900;letter-spacing:.05em;margin-top:10px;color:#1a0505;">${escHtml(qa.code)}</div>
+            <div style="font-size:12px;color:#555;margin-top:4px;">${qa.serviceLabel ? `${escHtml(qa.serviceLabel)} · ` : ""}${escHtml(qa.dateLabel)} at ${escHtml(qa.time)}</div>
+            <div style="font-size:11px;color:#777;margin-top:8px;">Save this image or show it from your email at the SSO Service Desk — works even when the portal link cannot be accessed.</div>
+          </div>
+        </div>`;
+    } catch {
+      // Fallback to plain-text email if QR generation fails.
+    }
+  }
+
+  const result = await sendMail({ to, subject: opts.title, text, html, attachments });
   const log = await prisma.emailLog.create({
     data: {
       to: to || null,

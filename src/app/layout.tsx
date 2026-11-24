@@ -20,6 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
           strategy="beforeInteractive"
         />
+        <Script
+          src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
+          strategy="lazyOnload"
+        />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link

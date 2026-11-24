@@ -143,12 +143,93 @@ let liveRefreshAt = 0;
 let donutChart = null;
 let barChartInst = null;
 
+const LAST_ROUTE_KEY = "stars_active_route";
+let myApptFilter = "all";
+
+function defaultPageForRole(role) {
+  if (role === "admin" || role === "super_admin") return "page-admin";
+  if (role === "scanner") return "page-scanner";
+  return "page-student";
+}
+
+function canAccessPage(role, pageId) {
+  if (!pageId || !document.getElementById(pageId)) return false;
+  if (["page-login", "page-register"].includes(pageId)) return false;
+  if (["page-memo", "page-settings", "page-masterlist", "page-system", "page-accounts"].includes(pageId)) {
+    return role === "super_admin";
+  }
+  if (role === "student" && ["page-admin", "page-manage", "page-appointments", "page-scanner"].includes(pageId)) {
+    return false;
+  }
+  if ((role === "admin" || role === "super_admin") && ["page-student", "page-appointment", "page-appointment-book", "page-tickets"].includes(pageId)) {
+    return false;
+  }
+  if (role === "scanner" && !["page-scanner", "page-account"].includes(pageId)) {
+    return false;
+  }
+  return true;
+}
+
+function parseRouteHash(raw) {
+  const clean = String(raw || "").replace(/^#/, "").trim();
+  if (!clean) return { pageId: "", params: {} };
+  const [pagePart, queryPart] = clean.split("?");
+  const params = {};
+  if (queryPart) {
+    new URLSearchParams(queryPart).forEach((v, k) => { params[k] = v; });
+  }
+  return { pageId: pagePart || "", params };
+}
+
+function persistActiveRoute(pageId, params) {
+  if (["page-login", "page-register"].includes(pageId)) return;
+  const qs = params && Object.keys(params).length
+    ? "?" + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== "")).toString()
+    : "";
+  const hash = `#${pageId}${qs}`;
+  try { sessionStorage.setItem(LAST_ROUTE_KEY, hash); } catch {}
+  if (window.location.hash !== hash) {
+    try { history.replaceState(null, "", hash); } catch { window.location.hash = hash; }
+  }
+}
+
+async function loadPublicSplash() {
+  try {
+    const res = await api("/api/settings/public");
+    if (!res.ok || !res.data) return;
+    const url = res.data.loginSplashUrl || "/pup-san-pedro-campus.svg";
+    const cap = res.data.loginSplashCaption || "PUP San Pedro Campus — Student Services Office";
+    document.querySelectorAll(".auth-splash-img").forEach((img) => { img.src = url; });
+    document.querySelectorAll(".auth-splash-caption").forEach((el) => { el.textContent = cap; });
+  } catch {}
+}
+
+window.addEventListener("hashchange", () => {
+  if (!session) return;
+  const { pageId, params } = parseRouteHash(window.location.hash);
+  if (!pageId || !canAccessPage(session.role, pageId)) return;
+  const active = document.querySelector(".page.active")?.id;
+  if (pageId !== active || (params.filter && pageId === "page-appointment" && params.filter !== myApptFilter)) {
+    goTo(pageId, { params, skipHash: true });
+  }
+});
+
 async function restoreSession() {
+  void loadPublicSplash();
   const r = await api("/api/auth/me");
   if (r.ok && r.data && r.data.user) {
     session = r.data.user;
     startLiveUpdates();
-    await goTo((session.role === "admin" || session.role === "super_admin") ? "page-admin" : session.role === "scanner" ? "page-scanner" : "page-student");
+    const fromHash = parseRouteHash(window.location.hash);
+    let saved = "";
+    try { saved = sessionStorage.getItem(LAST_ROUTE_KEY) || ""; } catch {}
+    const fromStorage = parseRouteHash(saved);
+    const chosen = canAccessPage(session.role, fromHash.pageId)
+      ? fromHash
+      : canAccessPage(session.role, fromStorage.pageId)
+        ? fromStorage
+        : { pageId: defaultPageForRole(session.role), params: {} };
+    await goTo(chosen.pageId, { params: chosen.params });
   }
 }
 
@@ -206,9 +287,50 @@ async function doLogin() {
 
 function showRegError(msg) {
   const el = document.getElementById("regError");
-  if (el) { el.innerHTML = `<i class="fa-solid fa-circle-exclamation" style="margin-right:5px;"></i>${msg}`; el.style.display = "block"; }
+  if (el) { el.innerHTML = `<i class="fa-solid fa-circle-exclamation" style="margin-right:5px;"></i>${esc(msg)}`; el.style.display = "block"; }
 }
 function clearRegError() { const el = document.getElementById("regError"); if (el) el.style.display = "none"; }
+
+let regOtpCooldownTimer = null;
+async function sendRegisterOtp() {
+  const btn = document.getElementById("regSendOtpBtn");
+  const statusEl = document.getElementById("regOtpStatus");
+  if (btn?.disabled) return;
+  clearRegError();
+  const sn = (document.getElementById("regStudNum")?.value || "").trim();
+  const email = (document.getElementById("regEmail")?.value || "").trim();
+  if (!sn || !email) {
+    showRegError("Enter your student number and email address before requesting an OTP.");
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:5px;"></i>Sending…'; }
+  const { ok, data } = await api("/api/auth/register/send-otp", { method: "POST", body: { sn, email } });
+  if (!ok) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane" style="margin-right:5px;"></i>Send OTP'; }
+    showRegError((data && data.error) || "Could not send verification code.");
+    return;
+  }
+  const devHint = data && data.devOtp ? ` (Dev OTP: ${data.devOtp})` : "";
+  if (statusEl) {
+    statusEl.style.color = "#15803d";
+    statusEl.innerHTML = `<i class="fa-solid fa-circle-check" style="margin-right:4px;"></i>6-digit OTP sent to <b>${esc(email)}</b> (valid for 10 minutes).${esc(devHint)}`;
+  }
+  showToast("✅ Verification code sent to your email!");
+  let left = 60;
+  if (regOtpCooldownTimer) clearInterval(regOtpCooldownTimer);
+  regOtpCooldownTimer = setInterval(() => {
+    left--;
+    if (!btn) return;
+    if (left <= 0) {
+      clearInterval(regOtpCooldownTimer);
+      regOtpCooldownTimer = null;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane" style="margin-right:5px;"></i>Resend OTP';
+    } else {
+      btn.textContent = `Resend (${left}s)`;
+    }
+  }, 1000);
+}
 
 async function handleRegister() {
   const submitButton = document.getElementById("registerSubmitBtn");
@@ -218,7 +340,9 @@ async function handleRegister() {
   const last = document.getElementById("regLast").value.trim();
   const sn = document.getElementById("regStudNum").value.trim();
   const email = document.getElementById("regEmail").value.trim();
+  const otp = (document.getElementById("regOtp")?.value || "").trim();
   const pass = document.getElementById("regPass").value;
+  const passConfirm = (document.getElementById("regPassConfirm")?.value || "");
   const course = document.getElementById("regCourse").value;
   const year = document.getElementById("regYear").value;
 
@@ -226,13 +350,21 @@ async function handleRegister() {
     showRegError("Please complete all fields before creating your account.");
     return;
   }
-  if (pass.length < 6) {
-    showRegError("Password must be at least 6 characters.");
+  if (!/^\d{6}$/.test(otp)) {
+    showRegError("Please enter the 6-digit verification code (OTP) sent to your email.");
+    return;
+  }
+  if (pass.length < 9 || !/[A-Z]/.test(pass) || !/[a-z]/.test(pass) || !/[0-9]/.test(pass) || !/[^A-Za-z0-9]/.test(pass)) {
+    showRegError("Password must be more than 8 characters (9+) and include uppercase, lowercase, a number, and a special character.");
+    return;
+  }
+  if (pass !== passConfirm) {
+    showRegError("Passwords do not match. Please re-enter your confirmation password.");
     return;
   }
 
   if (submitButton) { submitButton.disabled = true; submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>CREATING ACCOUNT…'; }
-  const { ok, data } = await api("/api/auth/register", { method: "POST", body: { first, last, sn, email, password: pass, course, year } });
+  const { ok, data } = await api("/api/auth/register", { method: "POST", body: { first, last, sn, email, otp, password: pass, course, year } });
   if (!ok) {
     if (submitButton) { submitButton.disabled = false; submitButton.innerHTML = '<i class="fa-solid fa-user-plus" style="margin-right:8px;"></i>CREATE ACCOUNT'; }
     showRegError((data && data.error) || "Could not create your account.");
@@ -240,7 +372,7 @@ async function handleRegister() {
   }
 
   showToast("✅ Account created! It will be reviewed by the SSO — you can sign in once approved.");
-  ["regFirst", "regLast", "regStudNum", "regEmail", "regPass"].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ""; });
+  ["regFirst", "regLast", "regStudNum", "regEmail", "regOtp", "regPass", "regPassConfirm"].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ""; });
   if (submitButton) { submitButton.disabled = false; submitButton.innerHTML = '<i class="fa-solid fa-user-plus" style="margin-right:8px;"></i>CREATE ACCOUNT'; }
   setTimeout(() => goTo("page-login"), 1200);
 }
@@ -255,10 +387,12 @@ function clearLoginForm() {
 }
 
 function clearRegisterForm() {
-  ["regFirst", "regLast", "regStudNum", "regEmail", "regPass"].forEach((id) => {
+  ["regFirst", "regLast", "regStudNum", "regEmail", "regOtp", "regPass", "regPassConfirm"].forEach((id) => {
     const field = document.getElementById(id);
     if (field) { field.value = ""; field.style.borderColor = ""; }
   });
+  const otpStatus = document.getElementById("regOtpStatus");
+  if (otpStatus) { otpStatus.style.color = "rgba(30,5,5,.7)"; otpStatus.textContent = "We'll send a 6-digit verification code to verify your email."; }
   ["regCourse", "regYear"].forEach((id) => {
     const field = document.getElementById(id);
     if (field) field.selectedIndex = 0;
@@ -272,7 +406,8 @@ function clearRegisterForm() {
 }
 
 
-async function goTo(pageId) {
+async function goTo(pageId, opts) {
+  const params = (opts && opts.params) || {};
   // page-services was removed — stale links/deep-links land on the dashboard.
   if (pageId === "page-services") pageId = "page-student";
   const publicPages = ["page-login", "page-register"];
@@ -303,11 +438,21 @@ async function goTo(pageId) {
       showToast("⚠️ Access denied.", "rgba(139,26,26,.9)"); return;
     }
   }
+  if (pageId === "page-appointment" && params.filter) {
+    myApptFilter = String(params.filter);
+  }
+  if (pageId === "page-appointments" && params.view && ["calendar", "list"].includes(params.view)) {
+    adminApptView = params.view;
+  }
+  if (pageId === "page-appointments" && params.status != null) {
+    adminApptStatus = String(params.status);
+  }
   if (document.querySelector(".page.active")?.id === "page-admin" && pageId !== "page-admin") {
     if (donutChart) { try { donutChart.destroy(); } catch (e) {} donutChart = null; }
     if (barChartInst) { try { barChartInst.destroy(); } catch (e) {} barChartInst = null; }
   }
   prevPage = document.querySelector(".page.active")?.id;
+  if (prevPage === "page-scanner" && pageId !== "page-scanner" && typeof stopQrScanner === "function") void stopQrScanner();
   if (prevPage === "page-login" && pageId !== "page-login") clearLoginForm();
   if (prevPage === "page-register" && pageId !== "page-register") clearRegisterForm();
   if (pageId === "page-login" && prevPage !== "page-login") clearLoginForm();
@@ -321,15 +466,22 @@ async function goTo(pageId) {
   const savedScroll = window.__qrsPageScroll[pageId] || 0;
   requestAnimationFrame(() => window.scrollTo({ top: savedScroll, left: 0, behavior: "auto" }));
 
+  if (!opts?.skipHash && session && !publicPages.includes(pageId)) {
+    const routeParams = {};
+    if (pageId === "page-appointment" && myApptFilter && myApptFilter !== "all") routeParams.filter = myApptFilter;
+    if (pageId === "page-appointments" && adminApptView && adminApptView !== "calendar") routeParams.view = adminApptView;
+    persistActiveRoute(pageId, routeParams);
+  }
+
   const noNav = ["page-login", "page-register"];
   document.getElementById("mainNav").style.display = noNav.includes(pageId) ? "none" : "block";
   if (noNav.includes(pageId)) closeMobileMenu();
-  if (pageId === "page-student") { await loadModule("requests"); renderStudentPage(); }
+  if (pageId === "page-student") { await Promise.all([loadModule("requests"), loadModule("idapps"), loadModule("events2"), loadModule("referrals")]); renderStudentPage(); }
   if (pageId === "page-admin") {
     await Promise.all([loadQueueData(), loadAuditLog(), loadEmailLog(), loadEmailStatus(), loadPendingAccounts(), refreshMasterlistStatus(), loadAdminActivity()]);
     renderAdminPage();
   }
-  if (pageId === "page-appointments") { await Promise.all([loadQueueData(), loadModule("requests"), loadModule("idapps")]); renderAdminAppointments(); }
+  if (pageId === "page-appointments") { await Promise.all([loadQueueData(), loadModule("requests"), loadModule("idapps"), loadModule("events2"), loadModule("referrals")]); renderAdminAppointments(); }
   const _bp = document.getElementById("bellPanel"); if (_bp) _bp.style.display = "none";
   if (pageId === "page-appointment") renderMyAppointments();
   if (pageId === "page-appointment-book") { buildServiceChips(); buildCalendar(); }
@@ -351,7 +503,7 @@ async function goTo(pageId) {
   if (pageId === "page-forms") { await loadModule("forms"); renderForms(); }
   if (pageId === "page-memo") { await loadModule("memos"); renderMemo(); }
   if (["page-login", "page-register"].includes(pageId)) {
-    await Promise.all([refreshMasterlistStatus(), loadRegistrationCourses()]);
+    await Promise.all([refreshMasterlistStatus(), loadRegistrationCourses(), loadPublicSplash()]);
   }
   await updateNav(pageId);
 }
@@ -449,10 +601,16 @@ async function renderAccountPage() {
       <div style="font-size:11px;color:rgba(30,5,5,.62);margin-bottom:12px;">Choose a new password of at least 6 characters.</div>
       <div style="display:grid;gap:12px;max-width:520px;">
         ${pwField("Current password", "cpCurrent")}${pwField("New password", "cpNew")}${pwField("Confirm new password", "cpConfirm")}
+        <div style="font-size:11px;color:rgba(30,5,5,.65);background:rgba(139,26,26,.05);border:1px solid rgba(139,26,26,.14);border-radius:10px;padding:8px 12px;line-height:1.45;">
+          <i class="fa-solid fa-shield-halved" style="color:#8B1A1A;margin-right:5px;"></i><b>Password policy:</b> More than 8 characters (9+), including uppercase (A-Z), lowercase (a-z), a number (0-9), and a special character (!@#$%^&amp;*).
+        </div>
         <div><button onclick="submitChangePassword()" class="btn-maroon" style="padding:11px 22px;">Update password</button>
         <span id="pwMsg" style="font-size:12px;color:rgba(30,5,5,.6);margin-left:10px;"></span></div>
       </div>
     </div>`;
+}
+function openAdminDashboardShortcut(status) {
+  goTo("page-appointments", { params: { view: "list", status: status || "" } });
 }
 async function submitChangePassword() {
   const currentPassword = document.getElementById("cpCurrent")?.value;
@@ -460,6 +618,10 @@ async function submitChangePassword() {
   const confirmPassword = document.getElementById("cpConfirm")?.value;
   const msg = document.getElementById("pwMsg");
   if (!currentPassword || !newPassword) { if (msg) msg.textContent = "Enter your current and new password."; return; }
+  if (newPassword.length < 9 || !/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+    if (msg) msg.textContent = "Password must be 9+ chars with uppercase, lowercase, number, and special character.";
+    return;
+  }
   if (newPassword !== confirmPassword) { if (msg) msg.textContent = "New passwords do not match."; return; }
   const result = await api("/api/auth/change-password", { method: "POST", body: { currentPassword, newPassword } });
   if (msg) msg.textContent = result.ok ? "Password updated." : (result.error || "Could not update password.");
@@ -472,6 +634,9 @@ async function signOut() {
   await api("/api/auth/logout", { method: "POST" });
   if (liveEventSource) { liveEventSource.close(); liveEventSource = null; }
   session = null;
+  myApptFilter = "all";
+  try { sessionStorage.removeItem(LAST_ROUTE_KEY); } catch {}
+  try { history.replaceState(null, "", "#page-login"); } catch {}
   await goTo("page-login");
   showToast("Signed out successfully.");
 }
@@ -483,27 +648,68 @@ async function renderStudentPage() {
 
   const hist = await api("/api/queue?mine=1&history=1");
   const visits = hist.ok ? hist.data : [];
+  MOD.visits = visits;
   const approved = visits.filter(isApprovedVisit);
   const pickups = studentPickups();
+  const served = visits.filter((a) => a.status === "SERVED");
   document.getElementById("kpiTotal").textContent = visits.length;
   document.getElementById("kpiPending").textContent = approved.length + pickups.length;
-  document.getElementById("kpiReady").textContent = visits.filter((a) => a.status === "SERVED").length;
+  document.getElementById("kpiReady").textContent = served.length;
+
+  const nextVisit = approved[0] || visits.filter(isAwaitingVisit)[0] || null;
+  const nextPickup = pickups[0] || null;
+  const nextDateEl = document.getElementById("kpiNextDate");
+  const nextMetaEl = document.getElementById("kpiNextMeta");
+  if (nextVisit) {
+    window.__qrsNextShortcut = { type: "appointment", code: nextVisit.q };
+    if (nextDateEl) nextDateEl.textContent = nextVisit.dateLabel || nextVisit.q;
+    if (nextMetaEl) nextMetaEl.textContent = `${nextVisit.q} · ${nextVisit.time}`;
+  } else if (nextPickup) {
+    window.__qrsNextShortcut = { type: "pickup", id: nextPickup.id };
+    if (nextDateEl) nextDateEl.textContent = nextPickup.pickupDate || "Pickup";
+    if (nextMetaEl) nextMetaEl.textContent = `${nextPickup.id} · ${nextPickup.pickupTime}`;
+  } else {
+    window.__qrsNextShortcut = null;
+    if (nextDateEl) nextDateEl.textContent = "None";
+    if (nextMetaEl) nextMetaEl.textContent = "Click to book a visit";
+  }
+
   renderDashboardAppointments(visits);
   renderStudentAppointment();
   renderStudentRequestCard(visits);
 }
 
-// Visit routing (student dashboard): booked but not yet approved visits live
-// under My Requests; approved (checked-in / in-progress) visits and scheduled
+function openDashboardShortcut(kind) {
+  if (kind === "next") {
+    const s = window.__qrsNextShortcut;
+    if (s && s.type === "appointment" && s.code) { viewMyAppointment(s.code); return; }
+    if (s && s.type === "pickup" && s.id) { viewMyRequest("request", s.id); return; }
+    goTo("page-appointment-book");
+    return;
+  }
+  myApptFilter = kind || "all";
+  goTo("page-appointment", { params: { filter: myApptFilter } });
+}
+
+function setMyApptFilter(filter) {
+  myApptFilter = filter || "all";
+  persistActiveRoute("page-appointment", myApptFilter === "all" ? {} : { filter: myApptFilter });
+  renderMyAppointments();
+}
+
+// Visit routing (student dashboard): PENDING_APPROVAL bookings wait under
+// My Requests; confirmed (BOOKED/RESCHEDULED/CHECKED_IN) visits and scheduled
 // pickups live under My Appointments.
-function isAwaitingVisit(a) { return ["BOOKED", "RESCHEDULED", "PENDING", "PENDING_APPROVAL"].includes(a.status); }
-function isApprovedVisit(a) { return ["CHECKED_IN"].includes(a.status); }
+function isAwaitingVisit(a) { return a.status === "PENDING_APPROVAL"; }
+function isApprovedVisit(a) { return ["BOOKED", "RESCHEDULED", "PENDING", "CHECKED_IN"].includes(a.status); }
 function studentPickups() {
   if (!session) return [];
-  return (MOD.requests || []).filter((r) => r.sn === session.id && r.status === "Pickup Scheduled");
+  const linkedPickupIds = new Set((MOD.visits || []).filter((v) => isApprovedVisit(v) && v.linkedId).map((v) => v.linkedId));
+  return (MOD.requests || []).filter((r) => r.sn === session.id && r.status === "Pickup Scheduled" && !linkedPickupIds.has(r.id));
 }
 function isTerminalReferral(s) { return /^(completed|rejected|cancelled|no.?show)$/i.test((s || "").trim()); }
 function isTerminalIdApp(s) { return /^(claimed|completed|rejected|cancelled)$/i.test((s || "").trim()); }
+function isTerminalEvent(s) { return /^(completed|rejected|disapproved|cancelled)$/i.test((s || "").trim()); }
 /** Re-render every student visit/request view after a booking change. */
 async function refreshStudentVisitViews(visits) {
   if (!visits) {
@@ -566,7 +772,8 @@ async function renderStudentAppointment() {
   const visits = result.ok ? result.data : [];
   const appt = visits.filter(isApprovedVisit)[0];
   if (appt) {
-    card.innerHTML = `${head}<div style="background:rgba(139,26,26,.5);border:1px solid rgba(245,197,24,.25);border-radius:14px;padding:16px;text-align:center;"><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,197,24,.7);">Appointment Number</div><div style="font-size:32px;font-weight:900;color:#fff;line-height:1.2;">${esc(appt.q)}</div><div style="font-size:12px;color:#fff;margin-top:5px;">${esc(appt.dateLabel)} · ${esc(appt.time)}</div><div style="font-size:11px;color:#F5C518;margin-top:4px;">${esc(appt.serviceLabel || appt.service || "")}${appt.linkedId ? ` · ${esc(appt.linkedId)}` : ""} · ${esc((appt.displayStatus || appt.status || "").replace(/_/g, " "))}</div></div><button onclick="viewMyAppointment('${esc(appt.q)}')" class="btn-ghost" style="width:100%;margin-top:10px;padding:8px;font-size:11px;">View details</button>`;
+    card.innerHTML = `${head}<div style="background:rgba(139,26,26,.5);border:1px solid rgba(245,197,24,.25);border-radius:14px;padding:16px;text-align:center;"><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,197,24,.7);">Appointment Number</div><div style="font-size:32px;font-weight:900;color:#fff;line-height:1.2;">${esc(appt.q)}</div><div style="font-size:12px;color:#fff;margin-top:5px;">${esc(appt.dateLabel)} · ${esc(appt.time)}</div><div style="font-size:11px;color:#F5C518;margin-top:4px;">${esc(appt.serviceLabel || appt.service || "")}${appt.linkedId ? ` · ${esc(appt.linkedId)}` : ""} · ${esc((appt.displayStatus || appt.status || "").replace(/_/g, " "))}</div><div id="dashApptQrWrap" style="margin-top:12px;display:flex;justify-content:center;"><span style="font-size:10px;color:rgba(255,255,255,.75);">Loading QR pass…</span></div></div><button onclick="viewMyAppointment('${esc(appt.q)}')" class="btn-ghost" style="width:100%;margin-top:10px;padding:8px;font-size:11px;"><i class="fa-solid fa-qrcode" style="margin-right:5px;"></i>View QR Pass &amp; Details</button>`;
+    void loadAppointmentQrInto(appt.q, "dashApptQrWrap", 132);
     return;
   }
   const pickup = studentPickups()[0];
@@ -585,25 +792,38 @@ async function renderMyAppointments() {
   const box = document.getElementById("myAppointmentsList");
   if (!box) return;
   box.innerHTML = `<div style="text-align:center;font-size:12px;color:rgba(30,5,5,.55);padding:24px;">Loading appointments…</div>`;
-  const [result, reqRes, refRes, idaRes] = await Promise.all([
+  const [result, reqRes, refRes, idaRes, evtRes] = await Promise.all([
     api("/api/queue?mine=1&history=1"),
     api("/api/modules/requests"),
     api("/api/modules/referrals"),
     api("/api/modules/idapps"),
+    api("/api/modules/events2"),
   ]);
   const list = result.ok ? result.data : [];
   MOD.visits = list;
   if (reqRes.ok) MOD.requests = reqRes.data;
   if (refRes.ok) MOD.referrals = refRes.data;
   if (idaRes.ok) MOD.idapps = idaRes.data;
+  if (evtRes.ok) MOD.events2 = evtRes.data;
   const sid = (session && session.id) || "";
   const myPickups = studentPickups();
   const awaiting = list.filter(isAwaitingVisit);
   const approved = list.filter(isApprovedVisit);
+  const completed = list.filter((a) => a.status === "SERVED");
+  const cancelled = list.filter((a) => ["CANCELLED", "NO_SHOW"].includes(a.status));
   const past = list.filter((a) => !isAwaitingVisit(a) && !isApprovedVisit(a) && a.status !== "PENDING_APPROVAL");
   const openServiceReqs = (MOD.requests || []).filter((r) => r.sn === sid && !REQ_TERMINAL_RE.test(r.status || ""));
   const openReferrals = (MOD.referrals || []).filter((r) => r.sn === sid && !isTerminalReferral(r.status));
   const openIdApps = (MOD.idapps || []).filter((a) => a.sn === sid && !isTerminalIdApp(a.status));
+  const openEvents = (MOD.events2 || []).filter((e) => e.sn === sid && !isTerminalEvent(e.status));
+  const filterTabs = [
+    { key: "all", label: "All", count: list.length + openServiceReqs.length + openReferrals.length + openIdApps.length + openEvents.length },
+    { key: "upcoming", label: "Upcoming", count: approved.length + myPickups.length },
+    { key: "pending", label: "Pending Approval", count: awaiting.length + openServiceReqs.length + openReferrals.length + openIdApps.length + openEvents.length },
+    { key: "completed", label: "Completed", count: completed.length },
+    { key: "cancelled", label: "Cancelled / No Show", count: cancelled.length },
+  ];
+  const filterBar = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">${filterTabs.map((t) => `<button type="button" onclick="setMyApptFilter('${t.key}')" class="${myApptFilter === t.key ? "btn-maroon" : "btn-ghost"}" style="padding:7px 14px;font-size:12px;border-radius:999px;">${esc(t.label)} <span style="opacity:.8;font-size:11px;margin-left:4px;">(${t.count})</span></button>`).join("")}</div>`;
   const visitRow = (a, withActions) => `<tr>
       <td><span style="font-family:monospace;font-size:11px;color:rgba(30,5,5,.68);">${esc(a.q)}</span></td>
       <td style="font-size:12px;white-space:nowrap;">${esc(a.dateLabel)} · ${esc(a.time)}</td>
@@ -656,16 +876,23 @@ async function renderMyAppointments() {
       </div>
       <div style="overflow-x:auto;padding:0 18px 18px;"><table class="glass-table" style="min-width:640px;"><thead><tr><th>Code</th><th>Date &amp; Time</th><th>Service</th><th>Linked Ref</th><th>Status</th><th style="text-align:right;">Action</th></tr></thead><tbody>${rows}</tbody></table></div>
     </div>`;
-  const upcomingRows = approved.map((a) => visitRow(a, false)).join("") + myPickups.map(pickupRow).join("");
+  const upcomingRows = approved.map((a) => visitRow(a, true)).join("") + myPickups.map(pickupRow).join("");
   const awaitingReqRows =
     openServiceReqs.map((r) => openReqRow(r.id, r.ts, reqServiceLabel(r.service), r.appointmentCode, r.status, "request")).join("")
+    + openEvents.map((e) => openReqRow(e.id, e.ts, `Event — ${e.title}`, e.appointmentCode, e.status, "event")).join("")
     + openReferrals.map((r) => openReqRow(r.id, r.ts, `Referral — ${r.category}`, r.appointmentCode, r.status, "referral")).join("")
     + openIdApps.map((a) => openReqRow(a.id, a.ts, a.type, null, a.status, "idapp")).join("");
-  const awaitingCount = awaiting.length + openServiceReqs.length + openReferrals.length + openIdApps.length;
-  box.innerHTML = `
-    ${awaitingCount ? table("Awaiting Review", "fa-solid fa-hourglass-half", `${awaitingCount} pending`, awaiting.map((a) => visitRow(a, true)).join("") + awaitingReqRows) + `<div style="font-size:11px;color:rgba(30,5,5,.58);margin:-8px 2px 16px;">Booked visits and open requests wait here until the SSO acts on them.</div>` : ""}
-    ${upcomingRows ? table("Upcoming Visits", "fa-solid fa-calendar-day", `${approved.length + myPickups.length} active`, upcomingRows) : `<div class="glass-card" style="padding:26px;text-align:center;margin-bottom:14px;"><div style="font-size:13px;color:rgba(30,5,5,.65);margin-bottom:12px;">No upcoming appointments.</div><button onclick="goTo('page-appointment-book')" class="btn-gold" style="padding:10px 20px;"><i class="fa-solid fa-calendar-plus" style="margin-right:6px;"></i>Book your first visit</button></div>`}
-    ${past.length ? table("Booking History", "fa-solid fa-clock-rotate-left", `${past.length} past`, past.map(pastRow).join("")) : ""}`;
+  const awaitingCount = awaiting.length + openServiceReqs.length + openEvents.length + openReferrals.length + openIdApps.length;
+  const showPending = myApptFilter === "all" || myApptFilter === "pending";
+  const showUpcoming = myApptFilter === "all" || myApptFilter === "upcoming";
+  const showCompleted = myApptFilter === "all" || myApptFilter === "completed";
+  const showCancelled = myApptFilter === "cancelled";
+  const historyList = showCancelled ? cancelled : myApptFilter === "completed" ? completed : past;
+  const historyTitle = showCancelled ? "Cancelled & No Show" : myApptFilter === "completed" ? "Completed Visits" : "Booking History";
+  box.innerHTML = filterBar + `
+    ${showUpcoming ? (upcomingRows ? table("Upcoming Visits & Pickups", "fa-solid fa-calendar-day", `${approved.length + myPickups.length} active`, upcomingRows) : `<div class="glass-card" style="padding:26px;text-align:center;margin-bottom:14px;"><div style="font-size:13px;color:rgba(30,5,5,.65);margin-bottom:12px;">No upcoming appointments.</div><button onclick="goTo('page-appointment-book')" class="btn-gold" style="padding:10px 20px;"><i class="fa-solid fa-calendar-plus" style="margin-right:6px;"></i>Book your first visit</button></div>`) : ""}
+    ${showPending && awaitingCount ? table("Awaiting Review", "fa-solid fa-hourglass-half", `${awaitingCount} pending`, awaiting.map((a) => visitRow(a, true)).join("") + awaitingReqRows) + `<div style="font-size:11px;color:rgba(30,5,5,.58);margin:-8px 2px 16px;">Pending bookings and open requests wait here until the SSO acts on them.</div>` : (myApptFilter === "pending" ? `<div class="glass-card" style="padding:24px;text-align:center;font-size:13px;color:rgba(30,5,5,.62);">No items awaiting review.</div>` : "")}
+    ${(showCompleted || showCancelled) ? (historyList.length ? table(historyTitle, "fa-solid fa-clock-rotate-left", `${historyList.length} record${historyList.length === 1 ? "" : "s"}`, historyList.map(pastRow).join("")) : (myApptFilter !== "all" ? `<div class="glass-card" style="padding:24px;text-align:center;font-size:13px;color:rgba(30,5,5,.62);">No matching records in this filter.</div>` : "")) : ""}`;
 }
 
 // ── Student read-only appointment viewer ─────────────────────────
@@ -694,9 +921,62 @@ async function viewMyAppointment(code) {
         ${a.notes ? `<div style="font-size:12px;color:rgba(30,5,5,.65);margin-top:4px;font-style:italic;">“${esc(a.notes)}”</div>` : ""}
         ${a.cancelReason ? `<div style="font-size:11px;color:rgba(30,5,5,.65);margin-top:4px;">Cancel reason: ${esc(a.cancelReason)}</div>` : ""}
       </div>
+      ${!["CANCELLED", "NO_SHOW"].includes(a.status) ? `
+      <div class="glass-card" style="padding:14px;text-align:center;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8B1A1A;margin-bottom:8px;"><i class="fa-solid fa-qrcode" style="margin-right:5px;"></i>Offline Appointment QR Pass</div>
+        <div id="modalApptQrWrap" style="display:flex;justify-content:center;align-items:center;min-height:190px;"><span style="font-size:12px;color:rgba(30,5,5,.55);">Generating QR pass…</span></div>
+        <div style="font-size:11px;color:rgba(30,5,5,.6);margin-top:8px;">Save or print this QR code so SSO staff can scan it even when the portal link cannot be accessed.</div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+          <button type="button" class="btn-gold" style="padding:7px 14px;font-size:12px;" onclick="downloadAppointmentQr('${esc(a.q)}')"><i class="fa-solid fa-download" style="margin-right:5px;"></i>Download PNG</button>
+          <button type="button" class="btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="printAppointmentQr('${esc(a.q)}')"><i class="fa-solid fa-print" style="margin-right:5px;"></i>Print Pass</button>
+        </div>
+      </div>` : ""}
       ${apptStepperHtml(a)}
       <div class="app-modal-actions"><button class="btn-soft" onclick="closeAppModal()">Close</button></div>
     </div>` });
+  if (!["CANCELLED", "NO_SHOW"].includes(a.status)) {
+    void loadAppointmentQrInto(a.q, "modalApptQrWrap", 190);
+  }
+}
+
+window.__qrsQrCache = window.__qrsQrCache || {};
+async function fetchAppointmentQr(code) {
+  if (window.__qrsQrCache[code]) return window.__qrsQrCache[code];
+  const res = await api(`/api/queue/${encodeURIComponent(code)}/qr`);
+  if (res.ok && res.data && res.data.dataUrl) {
+    window.__qrsQrCache[code] = res.data;
+    return res.data;
+  }
+  return null;
+}
+async function loadAppointmentQrInto(code, containerId, size) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const qr = await fetchAppointmentQr(code);
+  if (!qr) {
+    el.innerHTML = `<span style="font-size:11px;opacity:.75;">QR pass unavailable — present code <b>${esc(code)}</b></span>`;
+    return;
+  }
+  const px = size || 180;
+  el.innerHTML = `<img src="${qr.dataUrl}" alt="QR pass for ${esc(code)}" style="width:${px}px;height:${px}px;border-radius:10px;background:#fff;padding:6px;box-shadow:0 4px 14px rgba(0,0,0,.18);display:block;">`;
+}
+async function downloadAppointmentQr(code) {
+  const qr = await fetchAppointmentQr(code);
+  if (!qr) { showToast("Could not generate QR pass.", "rgba(155,22,22,.85)"); return; }
+  const a = document.createElement("a");
+  a.href = qr.dataUrl;
+  a.download = `STARS-${code}-QR.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+async function printAppointmentQr(code) {
+  const qr = await fetchAppointmentQr(code);
+  if (!qr) { showToast("Could not generate QR pass.", "rgba(155,22,22,.85)"); return; }
+  const w = window.open("", "_blank", "width=440,height=600");
+  if (!w) { showToast("Allow pop-ups to print your QR pass.", "rgba(180,130,0,.9)"); return; }
+  w.document.write(`<!doctype html><html><head><title>STARS QR Pass — ${esc(qr.code)}</title><style>body{font-family:Inter,Arial,sans-serif;text-align:center;padding:28px;color:#1a0505}.card{border:2px solid #8B1A1A;border-radius:16px;padding:24px;max-width:340px;margin:0 auto}h1{margin:0 0 4px;font-size:18px;color:#8B1A1A}.sub{font-size:11px;color:#666;margin-bottom:14px}.code{font-size:28px;font-weight:900;letter-spacing:.06em;margin:10px 0 4px}.meta{font-size:13px;margin:3px 0}.foot{font-size:10px;color:#666;margin-top:14px}@media print{.noprint{display:none}}</style></head><body><div class="card"><h1>PUP San Pedro — STARS</h1><div class="sub">Official Appointment QR Pass</div><img src="${qr.dataUrl}" width="220" height="220" alt="QR"/><div class="code">${esc(qr.code)}</div><div class="meta"><b>${esc(qr.serviceLabel)}</b></div><div class="meta">${esc(qr.dateLabel)} · ${esc(qr.time)}</div><div class="meta">${esc(qr.name)} (${esc(qr.studentId)})</div><div class="foot">Present this QR pass at the Student Services Office. Works offline.</div></div><p class="noprint"><button onclick="window.print()" style="margin-top:14px;padding:8px 18px;">Print</button></p><script>setTimeout(()=>window.print(),250);<\/script></body></html>`);
+  w.document.close();
 }
 
 // ── Student read-only request viewer ─────────────────────────────
@@ -707,13 +987,14 @@ function viewMyRequest(kind, id) {
   let item = null;
   if (kind === "referral") item = (MOD.referrals || []).find((x) => x.id === id);
   else if (kind === "idapp") item = (MOD.idapps || []).find((x) => x.id === id);
+  else if (kind === "event") item = (MOD.events2 || []).find((x) => x.id === id);
   else item = (MOD.requests || []).find((x) => x.id === id);
   if (!item) { showToast("❌ Record not found.", "rgba(155,22,22,.85)"); return; }
   const history = Array.isArray(item.history) && item.history.length
     ? `<div style="font-size:10px;color:rgba(30,5,5,.55);font-family:monospace;">${item.history.map((h) => `${esc(h.ts)} — ${esc(h.status)} by ${esc(h.by)}${h.note ? ": " + esc(h.note) : ""}`).join("<br>")}</div>`
     : "";
   const apptLine = item.appointmentCode
-    ? `<div style="font-size:11px;margin-top:6px;">Visit: <b>${esc(item.appointmentCode)}</b>${item.dateLabel ? ` · ${esc(item.dateLabel)}` : ""}${item.time ? ` ${esc(item.time)}` : ""}${item.appointmentDate ? ` · ${esc(item.appointmentDate)}` : ""}${item.appointmentTime ? ` ${esc(item.appointmentTime)}` : ""}</div>`
+    ? `<div style="font-size:11px;margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span>Visit: <b>${esc(item.appointmentCode)}</b>${item.dateLabel ? ` · ${esc(item.dateLabel)}` : ""}${item.time ? ` ${esc(item.time)}` : ""}${item.appointmentDate ? ` · ${esc(item.appointmentDate)}` : ""}${item.appointmentTime ? ` ${esc(item.appointmentTime)}` : ""}</span><button type="button" class="btn-gold" style="padding:4px 10px;font-size:10px;" onclick="closeAppModal();viewMyAppointment('${esc(item.appointmentCode)}')"><i class="fa-solid fa-qrcode" style="margin-right:4px;"></i>View QR Pass</button></div>`
     : "";
   const pickupLine = item.pickupDate
     ? `<div style="font-size:11px;color:#15803d;margin-top:6px;">Pickup: <b>${esc(item.pickupDate)} ${esc(item.pickupTime || "")}</b>${item.pickupNote ? ` — ${esc(item.pickupNote)}` : ""}</div>`
@@ -882,11 +1163,117 @@ function setAdminRequestPage(page) {
   renderAdminTable();
 }
 
+let qrScannerInst = null;
+let qrScannerFacing = "environment";
+let qrLastScanPayload = "";
+let qrLastScanAt = 0;
+
+async function startQrScanner() {
+  if (typeof window.Html5Qrcode === "undefined") {
+    showToast("QR camera library is still loading. Try again or use manual code lookup.", "rgba(180,130,0,.9)");
+    return;
+  }
+  await stopQrScanner();
+  const wrap = document.getElementById("scannerReaderWrap");
+  if (wrap) wrap.style.display = "block";
+  const startBtn = document.getElementById("btnStartQrScan");
+  const stopBtn = document.getElementById("btnStopQrScan");
+  const flipBtn = document.getElementById("btnSwitchQrCam");
+  if (startBtn) startBtn.style.display = "none";
+  if (stopBtn) stopBtn.style.display = "";
+  if (flipBtn) flipBtn.style.display = "";
+  try {
+    qrScannerInst = new window.Html5Qrcode("scannerReader");
+    await qrScannerInst.start(
+      { facingMode: qrScannerFacing },
+      { fps: 10, qrbox: { width: 230, height: 230 } },
+      (decodedText) => {
+        const now = Date.now();
+        if (decodedText === qrLastScanPayload && now - qrLastScanAt < 2500) return;
+        qrLastScanPayload = decodedText;
+        qrLastScanAt = now;
+        void handleQrScanResult(decodedText);
+      },
+      () => {}
+    );
+  } catch (err) {
+    showToast("Camera access denied or unavailable. Use manual code lookup below.", "rgba(155,22,22,.85)");
+    await stopQrScanner();
+  }
+}
+
+async function stopQrScanner() {
+  if (qrScannerInst) {
+    try { await qrScannerInst.stop(); } catch {}
+    try { await qrScannerInst.clear(); } catch {}
+    qrScannerInst = null;
+  }
+  const wrap = document.getElementById("scannerReaderWrap");
+  if (wrap) wrap.style.display = "none";
+  const startBtn = document.getElementById("btnStartQrScan");
+  const stopBtn = document.getElementById("btnStopQrScan");
+  const flipBtn = document.getElementById("btnSwitchQrCam");
+  if (startBtn) startBtn.style.display = "";
+  if (stopBtn) stopBtn.style.display = "none";
+  if (flipBtn) flipBtn.style.display = "none";
+}
+
+async function switchQrCamera() {
+  qrScannerFacing = qrScannerFacing === "environment" ? "user" : "environment";
+  await startQrScanner();
+}
+
+async function submitManualQrScan() {
+  const input = document.getElementById("scannerCodeInput");
+  const val = (input?.value || "").trim();
+  if (!val) { showToast("Enter an appointment code or QR payload.", "rgba(180,130,0,.9)"); return; }
+  await handleQrScanResult(val);
+}
+
+async function handleQrScanResult(payload) {
+  const box = document.getElementById("scannerResultCard");
+  if (!box) return;
+  const autoCheckIn = Boolean(document.getElementById("scannerAutoCheckIn")?.checked);
+  box.style.display = "block";
+  box.innerHTML = `<div style="font-size:12px;color:rgba(30,5,5,.65);padding:10px;">Verifying QR pass…</div>`;
+  const res = await api("/api/queue/scan", { method: "POST", body: { payload, autoCheckIn } });
+  if (!res.ok) {
+    box.innerHTML = `<div style="padding:12px 14px;border-radius:12px;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.3);color:#991b1b;font-size:12px;font-weight:700;"><i class="fa-solid fa-circle-xmark" style="margin-right:6px;"></i>${esc(res.error || "Invalid QR code.")}</div>`;
+    showToast("❌ " + (res.error || "Invalid QR code."), "rgba(155,22,22,.85)");
+    return;
+  }
+  const { appointment: a, verified, checkedInNow, warning } = res.data;
+  const canAct = ["BOOKED", "RESCHEDULED", "CHECKED_IN"].includes(a.status);
+  box.innerHTML = `
+    <div style="padding:14px;border-radius:12px;background:${warning ? "rgba(245,197,24,.14)" : "rgba(22,163,74,.10)"};border:1px solid ${warning ? "rgba(180,130,0,.35)" : "rgba(22,163,74,.32)"};">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <div>
+          <span style="font-size:18px;font-weight:900;color:#1a0505;">${esc(a.q)}</span>
+          ${verified ? `<span style="margin-left:6px;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;background:#166534;color:#fff;"><i class="fa-solid fa-shield-check" style="margin-right:3px;"></i>QR Verified</span>` : ""}
+          ${checkedInNow ? `<span style="margin-left:6px;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;background:#1d4ed8;color:#fff;">Auto Checked-In</span>` : ""}
+        </div>
+        ${apptStatusPill(a.status)}
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#1a0505;margin-top:6px;">${esc(a.name)} · ${esc(a.studentId)}</div>
+      <div style="font-size:11px;color:rgba(30,5,5,.72);margin-top:2px;">${esc(a.serviceLabel || a.service)} · ${esc(a.dateLabel)} at ${esc(a.time)}${a.linkedId ? ` · Ref: ${esc(a.linkedId)}` : ""}</div>
+      ${warning ? `<div style="font-size:11px;font-weight:700;color:#92400e;margin-top:6px;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:4px;"></i>${esc(warning)}</div>` : ""}
+      ${canAct ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        ${a.status !== "CHECKED_IN" ? `<button type="button" onclick="queueStatus('${esc(a.q)}','checkin').then(()=>handleQrScanResult('${esc(a.q)}'))" class="btn-ghost" style="padding:7px 14px;font-size:12px;">Check-in</button>` : ""}
+        <button type="button" onclick="queueStatus('${esc(a.q)}','serve').then(()=>handleQrScanResult('${esc(a.q)}'))" class="btn-maroon" style="padding:7px 16px;font-size:12px;">Complete / Serve</button>
+        <button type="button" onclick="queueStatus('${esc(a.q)}','noshow').then(()=>handleQrScanResult('${esc(a.q)}'))" class="btn-ghost" style="padding:7px 12px;font-size:12px;color:#b91c1c;">No Show</button>
+      </div>` : ""}
+    </div>`;
+  if (checkedInNow) {
+    showToast(`✅ ${a.q} checked in via QR scan!`);
+    void loadScannerQueue();
+  }
+}
+
 async function loadScannerQueue() {
   const box = document.getElementById("scannerQueueList");
   if (!box) return;
   box.innerHTML = `<div style="text-align:center;font-size:12px;color:rgba(30,5,5,.55);padding:16px;">Loading today's appointments…</div>`;
-  const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const today = typeof todayManilaLabel === "function" ? todayManilaLabel() : new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const dateInput = document.getElementById("scannerDate");
   const date = dateInput?.value || today;
   const result = await api(`/api/queue/manifest?date=${encodeURIComponent(date)}`);
@@ -1722,7 +2109,40 @@ function selectRescheduleSlot(t) {
 
 function togglePass(id, btn) { const el = document.getElementById(id); el.type = el.type === "password" ? "text" : "password"; btn.querySelector("i").className = el.type === "password" ? "fa-solid fa-eye" : "fa-solid fa-eye-slash"; }
 function validateStudNum(el) { const valid = /^\d{4}-\d{5}-SP-\d$/.test(el.value); const h = document.getElementById("studNumHelper"); if (el.value.length > 3) { el.style.borderColor = valid ? "rgba(34,197,94,.5)" : "rgba(239,68,68,.5)"; h.innerHTML = valid ? '<i class="fa-solid fa-circle-check" style="color:#4ade80;margin-right:3px;"></i><span style="color:#4ade80;">Valid format</span>' : '<i class="fa-solid fa-triangle-exclamation" style="color:#f87171;margin-right:3px;"></i><span style="color:#f87171;">Format: 2024-00000-SP-0</span>'; } }
-function checkStrength(val) { const bars = [1, 2, 3, 4].map((i) => document.getElementById("s" + i)); const label = document.getElementById("strengthLabel"); let score = 0; if (val.length >= 8) score++; if (/[A-Z]/.test(val)) score++; if (/[0-9]/.test(val)) score++; if (/[^A-Za-z0-9]/.test(val)) score++; const colors = ["rgba(239,68,68,.8)", "rgba(249,115,22,.8)", "rgba(245,197,24,.8)", "rgba(34,197,94,.8)"]; const labels = ["Weak", "Fair", "Good", "Strong"]; bars.forEach((b, i) => (b.style.background = i < score ? colors[score - 1] : "rgba(139,26,26,.1)")); label.textContent = val.length ? labels[score - 1] || "Weak" : "Password strength"; label.style.color = val.length ? colors[score - 1] : "rgba(30,5,5,.55)"; }
+function checkStrength(val) {
+  const v = String(val || "");
+  const bars = [1, 2, 3, 4].map((i) => document.getElementById("s" + i));
+  const label = document.getElementById("strengthLabel");
+  const hasLen = v.length >= 9;
+  const hasUp = /[A-Z]/.test(v);
+  const hasLow = /[a-z]/.test(v);
+  const hasNum = /[0-9]/.test(v);
+  const hasSpec = /[^A-Za-z0-9]/.test(v);
+  const setChk = (id, ok, text) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.color = ok ? "#15803d" : "rgba(30,5,5,.6)";
+    el.style.fontWeight = ok ? "700" : "400";
+    el.innerHTML = `<i class="${ok ? "fa-solid fa-circle-check" : "fa-regular fa-circle"}" style="margin-right:4px;"></i>${text}`;
+  };
+  setChk("chkLen", hasLen, "More than 8 chars (9+)");
+  setChk("chkUp", hasUp, "Uppercase (A-Z)");
+  setChk("chkLow", hasLow, "Lowercase (a-z)");
+  setChk("chkNum", hasNum, "Number (0-9)");
+  setChk("chkSpec", hasSpec, "Special character (!@#$%^&*)");
+  let score = 0;
+  if (hasLen) score++;
+  if (hasUp && hasLow) score++;
+  if (hasNum) score++;
+  if (hasSpec) score++;
+  const colors = ["rgba(239,68,68,.8)", "rgba(249,115,22,.8)", "rgba(245,197,24,.8)", "rgba(34,197,94,.8)"];
+  const labels = ["Weak", "Fair", "Good", "Strong"];
+  bars.forEach((b, i) => { if (b) b.style.background = i < score ? colors[score - 1] : "rgba(139,26,26,.1)"; });
+  if (label) {
+    label.textContent = v.length ? (score === 4 ? "Strong password ✓" : (labels[score - 1] || "Weak")) : "Password strength";
+    label.style.color = v.length ? colors[Math.max(0, score - 1)] : "rgba(30,5,5,.55)";
+  }
+}
 function parseCSV(text) {
   const rows = []; let row = [], field = "", q = false;
   for (let i = 0; i < text.length; i++) {
@@ -1748,7 +2168,15 @@ function showToast(msg, bg) { const t = document.createElement("div"); t.classNa
 const APP_VERSION = "3.2.1-nextjs";
 
 function esc(s) { return (s == null ? "" : String(s)).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
-function fnow() { return new Date().toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }); }
+const APP_TIMEZONE = "Asia/Manila";
+function fnow(d) {
+  const dt = d ? new Date(d) : new Date();
+  if (Number.isNaN(dt.getTime())) return "";
+  return dt.toLocaleString("en-PH", { timeZone: APP_TIMEZONE, dateStyle: "medium", timeStyle: "short" });
+}
+function todayManilaLabel() {
+  return new Date().toLocaleDateString("en-US", { timeZone: APP_TIMEZONE, month: "long", day: "numeric", year: "numeric" });
+}
 function isAdmin() { return session && (session.role === "admin" || session.role === "super_admin"); }
 function isSuperAdmin() { return session && session.role === "super_admin"; }
 function pill(status) {
@@ -2788,7 +3216,7 @@ function renderBulletin() {
         <div class="glass-card" style="padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
           <div style="min-width:200px;flex:1;">
             <div style="font-size:12px;font-weight:800;color:#1a0505;">${b.featured ? "⭐ " : ""}${esc(b.title)}</div>
-            <div style="font-size:10px;color:rgba(30,5,5,.5);">${esc(b.category)} · ${esc(b.ts)}${b.publishAt && b.publishAt > now ? " · scheduled " + new Date(b.publishAt).toLocaleString() : ""}</div>
+            <div style="font-size:10px;color:rgba(30,5,5,.5);">${esc(b.category)} · ${esc(b.ts)}${b.publishAt && b.publishAt > now ? " · scheduled " + fnow(b.publishAt) : ""}</div>
           </div>
           ${pill(b.status)}
           <div style="display:flex;gap:6px;">
@@ -2990,14 +3418,21 @@ function renderHelpdesk() {
       if (open && open.chatSessionId) loadTicketChatQuote(open.chatSessionId);
     });
   } else {
-    if (!chatbotMessages.length) chatbotMessages = [{ from: "bot", text: "Hi! How can I help you today?", ts: Date.now(), pills: CHATBOT_STARTER_PILLS }];
+    if (!chatbotMessages.length) {
+      chatbotMessages = [{
+        from: "bot",
+        text: "Hello! 👋 I'm your **PUP San Pedro STARS Assistant**.\n\nAsk me about appointments, offline QR passes, Student IDs, Excuse Slips, Authentication, Events, or paste any reference code (`APT-`, `EXC-`, `IDA-`, `TKT-`) to check live status!",
+        ts: Date.now(),
+        pills: CHATBOT_STARTER_PILLS,
+      }];
+    }
     const mine = [...MOD.tickets].filter((t) => t.sn === session.id).reverse();
     el.innerHTML = `
       <div class="glass-card" style="padding:18px;max-width:820px;margin:0 auto;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;"><div style="display:flex;align-items:center;gap:10px;"><div style="width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#8B1A1A;color:#F5C518;"><i class="fa-solid fa-robot"></i></div><div><div style="font-size:15px;font-weight:900;color:#1a0505;">Support Assistant ${mine.length ? `<span style="font-size:10px;font-weight:800;color:#8B1A1A;background:rgba(245,197,24,.25);border:1px solid rgba(212,160,23,.4);border-radius:99px;padding:2px 9px;margin-left:6px;vertical-align:middle;">Tickets ${mine.length}</span>` : ""}</div></div></div><div style="display:flex;gap:6px;"><button onclick="toggleChatSessions()" class="btn-ghost" style="padding:8px 12px;font-size:11px;white-space:nowrap;"><i class="fa-solid fa-clock-rotate-left" style="margin-right:4px;"></i>Past chats</button><button onclick="hdMyTickets()" class="btn-ghost" style="padding:8px 12px;font-size:11px;white-space:nowrap;"><i class="fa-solid fa-ticket" style="margin-right:4px;"></i>My tickets</button></div></div>
         ${chatbotSessionsOpen ? chatbotSessionsHtml() : ""}
         <div id="chatbotMessages" style="height:420px;overflow-y:auto;padding:14px;background:rgba(255,255,255,.48);border:1px solid rgba(139,26,26,.12);border-radius:14px;display:flex;flex-direction:column;gap:10px;">
-          ${chatbotMessages.map((m, idx) => `<div style="display:flex;justify-content:${m.from === "user" ? "flex-end" : "flex-start"};"><div style="max-width:82%;padding:10px 12px;border-radius:12px;background:${m.from === "user" ? "rgba(139,26,26,.14)" : "rgba(245,197,24,.16)"};font-size:13px;color:#1a0505;line-height:1.5;white-space:pre-wrap;">${esc(m.text)}${m.ts ? `<div style="font-size:9px;color:rgba(30,5,5,.45);margin-top:4px;">${esc(fmtChatTs(m.ts))}</div>` : ""}${chatbotFeedbackHtml(m, idx)}${chatbotPillsHtml(m, idx)}${chatbotCardsHtml(m)}${chatbotFollowHtml(m, idx)}</div></div>`).join("")}
+          ${chatbotMessages.map((m, idx) => `<div style="display:flex;justify-content:${m.from === "user" ? "flex-end" : "flex-start"};"><div style="max-width:84%;padding:11px 13px;border-radius:14px;background:${m.from === "user" ? "rgba(139,26,26,.14)" : "rgba(245,197,24,.16)"};border:1px solid ${m.from === "user" ? "rgba(139,26,26,.18)" : "rgba(212,160,23,.25)"};font-size:13px;color:#1a0505;line-height:1.52;white-space:pre-wrap;">${fmtChatText(m.text)}${m.ts ? `<div style="font-size:9px;color:rgba(30,5,5,.45);margin-top:5px;">${esc(fmtChatTs(m.ts))}</div>` : ""}${chatbotFeedbackHtml(m, idx)}${chatbotCardsHtml(m)}${chatbotPillsHtml(m, idx)}${chatbotFollowHtml(m, idx)}</div></div>`).join("")}
           ${chatbotTyping ? `<div style="display:flex;justify-content:flex-start;"><div style="padding:10px 14px;border-radius:12px;background:rgba(245,197,24,.16);font-size:13px;color:#1a0505;"><i class="fa-solid fa-ellipsis fa-fade"></i></div></div>` : ""}
         </div>
         <div style="display:flex;gap:8px;margin-top:12px;"><input id="chatbotInput" class="glass-input" style="flex:1" placeholder="Ask a question about Student Services…" onkeydown="if(event.key==='Enter')chatbotAsk()"><button onclick="chatbotAsk()" class="btn-maroon" style="padding:10px 16px;"><i class="fa-solid fa-paper-plane"></i> Send</button></div>
@@ -3061,17 +3496,44 @@ function chatbotAnswerLocal(question) {
   }
   renderHelpdesk();
 }
+// Safe inline formatting for assistant replies: HTML-escaped first, then
+// **bold**, *italic*, and `code` spans rendered cleanly.
+function fmtChatText(raw) {
+  return esc(raw || "")
+    .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/`([^`\n]+)`/g, '<code style="font-family:monospace;font-size:11px;background:rgba(139,26,26,.09);padding:1px 5px;border-radius:5px;color:#6b1212;">$1</code>')
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?]|$)/g, "$1<em>$2</em>");
+}
+
+function chatbotPillIcon(action) {
+  const t = action && action.type;
+  if (t === "view_qr") return "fa-solid fa-qrcode";
+  if (t === "reschedule") return "fa-solid fa-calendar-days";
+  if (t === "ticket" || t === "tickets") return "fa-solid fa-ticket";
+  if (t === "navigate") {
+    if (action.target === "page-appointment-book") return "fa-solid fa-calendar-plus";
+    if (action.target === "page-forms") return "fa-solid fa-file-arrow-down";
+    if (action.target === "page-idapp") return "fa-solid fa-id-card";
+    if (action.target === "page-account") return "fa-solid fa-user-shield";
+    return "fa-solid fa-arrow-up-right-from-square";
+  }
+  return "fa-regular fa-comment-dots";
+}
+
 // Contextual action pills: rendered ONLY under the latest bot message —
-// earlier pills vanish on re-render by construction. Legacy per-message
-// links render only when a message carries no pills (offline fallback).
+// earlier pills vanish on re-render by construction.
 function chatbotPillsHtml(m, idx) {
   const isLatest = idx === chatbotMessages.length - 1 && m.from === "bot" && !chatbotTyping;
   const pills = m.pills || [];
   if (isLatest && pills.length) {
-    return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${pills.map((p, i) => `<button onclick="chatbotPillClick(${idx},${i})" class="btn-ghost" style="padding:7px 10px;font-size:11px;">${esc(p.label)}</button>`).join("")}</div>`;
+    return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;">${pills.map((p, i) => {
+      const isPrimary = p.action && (p.action.type === "view_qr" || p.action.type === "ticket");
+      const cls = isPrimary ? "btn-maroon" : "btn-ghost";
+      return `<button type="button" onclick="chatbotPillClick(${idx},${i})" class="${cls}" style="padding:7px 11px;font-size:11px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;"><i class="${chatbotPillIcon(p.action)}" style="font-size:10px;"></i>${esc(p.label)}</button>`;
+    }).join("")}</div>`;
   }
   if (!pills.length) {
-    return (m.links || []).map((l) => `<button onclick="goTo('${esc(l.target)}')" class="btn-ghost" style="display:block;margin-top:8px;padding:7px 10px;font-size:11px;text-align:left;">${esc(l.label)} →</button>`).join("");
+    return (m.links || []).map((l) => `<button type="button" onclick="goTo('${esc(l.target)}')" class="btn-ghost" style="display:inline-flex;align-items:center;gap:5px;margin-top:8px;margin-right:6px;padding:7px 11px;font-size:11px;border-radius:999px;"><i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px;"></i>${esc(l.label)}</button>`).join("");
   }
   return "";
 }
@@ -3081,9 +3543,17 @@ function chatbotPillClick(msgIdx, pillIdx) {
   const p = m && m.pills && m.pills[pillIdx];
   if (!p || !p.action) return;
   const a = p.action;
+  if (a.type === "view_qr" && a.code) {
+    viewMyAppointment(a.code);
+    return;
+  }
+  if (a.type === "reschedule" && a.code) {
+    rescheduleAppointment(a.code);
+    return;
+  }
   if (a.type === "navigate") {
     if (!/^page-[a-z0-9-]+$/.test(a.target || "") || !document.getElementById(a.target)) return;
-    goTo(a.target);
+    goTo(a.target, a.params ? { params: a.params } : undefined);
     return;
   }
   if (a.type === "jump") {
@@ -3105,23 +3575,35 @@ function chatbotPillClick(msgIdx, pillIdx) {
 }
 // Starter set mirrors server STARTER_PILLS (client-side initial message only).
 const CHATBOT_STARTER_PILLS = [
-  { label: "Book an appointment", action: { type: "navigate", target: "page-appointment" } },
-  { label: "Request a document", action: { type: "navigate", target: "page-appointment-book" } },
-  { label: "Check a request", action: { type: "ask", prompt: "What's the status of my requests?" } },
-  { label: "Report a problem", action: { type: "ticket" } },
+  { label: "Book / Request", action: { type: "navigate", target: "page-appointment-book" } },
+  { label: "Upcoming Visits", action: { type: "navigate", target: "page-appointment", params: { filter: "upcoming" } } },
+  { label: "Check my status", action: { type: "ask", prompt: "What's the status of my appointments and requests?" } },
+  { label: "Offline QR Pass", action: { type: "ask", prompt: "How do I get my offline appointment QR pass?" } },
 ];
 // Structured answer cards mirroring the text reply (C-3). Server sends
 // cards; text stays authoritative, so a missing/empty array renders nothing.
 function chatbotCardsHtml(m) {
-  return (m.cards || []).map((c) => `
-    <div style="margin-top:8px;background:rgba(255,255,255,.6);border:1px solid rgba(139,26,26,.12);border-radius:10px;padding:8px 10px;text-align:left;">
+  return (m.cards || []).map((c) => {
+    const isAppt = c.kind === "appointment";
+    const isActiveAppt = isAppt && !["CANCELLED", "NO_SHOW", "Cancelled", "No Show"].includes(c.status);
+    const canResched = isAppt && ["BOOKED", "RESCHEDULED", "Confirmed", "Rescheduled"].includes(c.status);
+    const isReqKind = ["request", "idapp", "event"].includes(c.kind);
+    return `
+    <div style="margin-top:8px;background:rgba(255,255,255,.72);border:1px solid rgba(139,26,26,.14);border-radius:12px;padding:10px 12px;text-align:left;">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;">
         <span style="font-size:12px;font-weight:800;color:#1a0505;">${esc(c.title)}</span>${pill(c.status)}
       </div>
-      <div style="font-size:10px;font-family:monospace;color:rgba(30,5,5,.55);margin-top:2px;">${esc(c.ref)}</div>
-      ${(c.meta || []).map((x) => `<div style="font-size:11px;color:rgba(30,5,5,.7);margin-top:2px;">${esc(x)}</div>`).join("")}
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">${c.kind === "ticket" ? `<button onclick="jumpToTicket('${esc(c.ref)}')" class="btn-ghost" style="padding:6px 10px;font-size:11px;">View ticket</button>` : ""}${c.link ? `<button onclick="goTo('${esc(c.link.target)}')" class="btn-ghost" style="padding:6px 10px;font-size:11px;">${esc(c.link.label)} →</button>` : ""}</div>
-    </div>`).join("");
+      <div style="font-size:10px;font-family:monospace;color:rgba(30,5,5,.6);margin-top:2px;">${esc(c.ref)}</div>
+      ${(c.meta || []).map((x) => `<div style="font-size:11px;color:rgba(30,5,5,.74);margin-top:3px;">${esc(x)}</div>`).join("")}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+        ${isActiveAppt ? `<button type="button" onclick="viewMyAppointment('${esc(c.ref)}')" class="btn-maroon" style="padding:6px 10px;font-size:11px;border-radius:999px;"><i class="fa-solid fa-qrcode" style="margin-right:4px;"></i>Show QR Pass</button>` : ""}
+        ${canResched ? `<button type="button" onclick="rescheduleAppointment('${esc(c.ref)}')" class="btn-ghost" style="padding:6px 10px;font-size:11px;border-radius:999px;"><i class="fa-solid fa-calendar-days" style="margin-right:4px;"></i>Reschedule</button>` : ""}
+        ${isReqKind ? `<button type="button" onclick="viewMyRequest('${esc(c.kind)}','${esc(c.ref)}')" class="btn-ghost" style="padding:6px 10px;font-size:11px;border-radius:999px;"><i class="fa-solid fa-eye" style="margin-right:4px;"></i>View Details</button>` : ""}
+        ${c.kind === "ticket" ? `<button type="button" onclick="jumpToTicket('${esc(c.ref)}')" class="btn-ghost" style="padding:6px 10px;font-size:11px;border-radius:999px;"><i class="fa-solid fa-ticket" style="margin-right:4px;"></i>View Ticket</button>` : ""}
+        ${c.link ? `<button type="button" onclick="goTo('${esc(c.link.target)}')" class="btn-ghost" style="padding:6px 10px;font-size:11px;border-radius:999px;">${esc(c.link.label)} →</button>` : ""}
+      </div>
+    </div>`;
+  }).join("");
 }
 async function chatbotSendToServer(question) {
   chatbotEscalationQuestion = "";
@@ -3162,7 +3644,7 @@ async function chatbotSendToServer(question) {
 function chatbotSessionsHtml() {
   const q = (chatbotSessionQ || "").toLowerCase();
   const rows = chatbotSessions.filter((s) => !q || (s.subject || "").toLowerCase().includes(q));
-  const fmt = (ts) => { try { return new Date(ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } };
+  const fmt = (ts) => { try { return new Date(ts).toLocaleString("en-PH", { timeZone: APP_TIMEZONE, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } };
   return `<div class="glass-card" style="padding:12px;margin-bottom:12px;">
     <div style="display:flex;gap:8px;margin-bottom:8px;"><input id="chatSessionQ" class="glass-input" style="flex:1;padding:7px 10px;font-size:12px;" placeholder="Search past chats…" value="${esc(chatbotSessionQ || "")}" oninput="chatbotSessionQ=this.value;renderHelpdesk();var i=document.getElementById('chatSessionQ');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}"><button onclick="newChatSession()" class="btn-gold" style="padding:7px 12px;font-size:11px;white-space:nowrap;">New chat</button></div>
     <div style="max-height:180px;overflow-y:auto;display:grid;gap:6px;">${rows.map((s) => `
@@ -3407,7 +3889,37 @@ function answerCuration(i) {
   const cat = (s.suggestedCategory && cats.includes(s.suggestedCategory)) ? s.suggestedCategory : (cats[0] || "General");
   openFaqEntryForm(cat, s.question);
 }
+async function runChatbotSimulation() {
+  const input = document.getElementById("simChatInput");
+  const out = document.getElementById("simChatOutput");
+  const message = (input?.value || "").trim();
+  if (!message || !out) return;
+  out.style.display = "block";
+  out.innerHTML = `<div style="font-size:12px;color:rgba(30,5,5,.6);">Simulating assistant pipeline…</div>`;
+  const res = await api("/api/assistant/simulate", { method: "POST", body: { message } });
+  if (!res.ok) {
+    out.innerHTML = `<div style="color:#b91c1c;font-size:12px;font-weight:700;">${esc(res.error || "Simulation failed.")}</div>`;
+    return;
+  }
+  const d = res.data;
+  const confColor = d.confidence === "high" ? "#166534" : d.confidence === "medium" ? "#a16207" : "#b91c1c";
+  out.innerHTML = `
+    <div style="padding:12px 14px;border-radius:12px;background:rgba(139,26,26,.05);border:1px solid rgba(139,26,26,.16);font-size:12px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+        <span style="font-weight:800;padding:2px 8px;border-radius:999px;background:#8B1A1A;color:#fff;font-size:10px;">Stage: ${esc(d.stage)}</span>
+        <span style="font-weight:800;padding:2px 8px;border-radius:999px;background:${confColor};color:#fff;font-size:10px;">Confidence: ${esc(d.confidence)}</span>
+        ${d.ruleId ? `<span style="font-family:monospace;font-size:10px;">rule: <b>${esc(d.ruleId)}</b></span>` : ""}
+        ${d.faqId ? `<span style="font-family:monospace;font-size:10px;">faq: <b>${esc(d.faqId)}</b></span>` : ""}
+        ${d.semanticTopScore != null ? `<span style="font-family:monospace;font-size:10px;">semantic: <b>${d.semanticTopScore}</b></span>` : ""}
+      </div>
+      <div style="font-size:11px;color:rgba(30,5,5,.65);margin-bottom:6px;">Tokens: <code>${esc((d.tokens || []).join(", ") || "—")}</code></div>
+      <div style="white-space:pre-wrap;background:#fff;border:1px solid rgba(139,26,26,.12);border-radius:10px;padding:10px 12px;color:#1a0505;line-height:1.45;">${esc(d.reply || "")}</div>
+    </div>`;
+}
+
 function renderFaq() {
+  const trainer = document.getElementById("adminChatbotTrainer");
+  if (trainer) trainer.style.display = isAdmin() ? "block" : "none";
   const el = document.getElementById("faqBody");
   const q = faqQuery.toLowerCase();
   const list = MOD.faqs.filter((f) => !q || f.q.toLowerCase().includes(q) || f.a.toLowerCase().includes(q) || f.cat.toLowerCase().includes(q));
@@ -4028,7 +4540,7 @@ function renderSystemPage() {
   if (!box) return;
   const a = window.__qrsAnalytics;
   const f = window.__qrsFaqUsage;
-  const loadedAt = window.__qrsSystemLoadedAt ? window.__qrsSystemLoadedAt.toLocaleString() : "";
+  const loadedAt = window.__qrsSystemLoadedAt ? fnow(window.__qrsSystemLoadedAt) : "";
   const sum = (items) => (items || []).reduce((t, x) => t + (Number(x.count) || 0), 0);
   const totalStudents = a ? sum(a.byCourse) : 0;
   const totalAppointments = a ? sum(a.services) : 0;
@@ -4286,6 +4798,35 @@ async function renderSettingsPage() {
       </div>
     </div>
   </div>
+  <div class="glass-card" style="padding:20px;margin-bottom:14px;">
+    <div class="insight-head" style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="sys-sec-ico"><i class="fa-solid fa-image"></i></div>
+        <div><div class="insight-title">Login Splash Screen</div><div class="insight-sub">PUP San Pedro Branch image displayed on the Login and Register pages.</div></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:16px;align-items:start;">
+      <div style="border-radius:14px;overflow:hidden;border:1px solid rgba(139,26,26,.18);background:#2a0808;aspect-ratio:4/3;position:relative;">
+        <img id="setSplashPreview" src="${esc(s.loginSplashUrl || "/pup-san-pedro-campus.svg")}" alt="Login Splash Preview" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='/pup-san-pedro-campus.svg'">
+      </div>
+      <div style="display:grid;gap:10px;">
+        <div class="sys-field">
+          <span class="input-label">Splash Image URL</span>
+          <input id="setLoginSplashUrl" class="glass-input" value="${esc(s.loginSplashUrl || "/pup-san-pedro-campus.svg")}" oninput="sysMarkDirty();sysUpdateSplashPreview()">
+        </div>
+        <div class="sys-field">
+          <span class="input-label">Campus Caption Badge</span>
+          <input id="setLoginSplashCaption" class="glass-input" value="${esc(s.loginSplashCaption || "PUP San Pedro Campus — Student Services Office")}" oninput="sysMarkDirty()">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input id="setSplashFile" type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="uploadLoginSplash(this)">
+          <button type="button" class="btn-gold" style="padding:8px 14px;font-size:12px;" onclick="document.getElementById('setSplashFile')?.click()"><i class="fa-solid fa-upload" style="margin-right:6px;"></i>Upload PUP Campus Photo</button>
+          <button type="button" class="btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="resetLoginSplash()"><i class="fa-solid fa-rotate-left" style="margin-right:6px;"></i>Reset to Default</button>
+        </div>
+        <div class="sys-hint">Recommended: landscape or portrait photo (JPG/PNG/WebP, max 5 MB). Click "Save settings" to publish.</div>
+      </div>
+    </div>
+  </div>
   <div class="sys-savebar">
     <span id="settingsDirtyDotBottom" class="sys-clean"><i class="fa-solid fa-circle-check" style="margin-right:5px;"></i>No unsaved changes</span>
     <span id="settingsSaveMsg" class="sys-save-msg"></span>
@@ -4388,6 +4929,34 @@ function sysUpdateEmailPreview() {
   const escHtml = String(rendered).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
   prev.innerHTML = `<div class="sys-email-subject">${esc(sample.title)}</div><div class="sys-email-to">To: juan@iskolar.pup.edu.ph</div><div class="sys-email-body">${escHtml}</div>`;
 }
+function sysUpdateSplashPreview() {
+  const url = document.getElementById("setLoginSplashUrl")?.value.trim() || "/pup-san-pedro-campus.svg";
+  const img = document.getElementById("setSplashPreview");
+  if (img) img.src = url;
+}
+function resetLoginSplash() {
+  const urlEl = document.getElementById("setLoginSplashUrl");
+  const capEl = document.getElementById("setLoginSplashCaption");
+  if (urlEl) urlEl.value = "/pup-san-pedro-campus.svg";
+  if (capEl) capEl.value = "PUP San Pedro Campus — Student Services Office";
+  sysUpdateSplashPreview();
+  sysMarkDirty();
+}
+async function uploadLoginSplash(input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast("Image must be 5 MB or smaller.", "rgba(155,22,22,.85)"); return; }
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/upload", { method: "POST", body: fd });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.url) { showToast(data.error || "Failed to upload splash image.", "rgba(155,22,22,.85)"); return; }
+  const urlEl = document.getElementById("setLoginSplashUrl");
+  if (urlEl) urlEl.value = data.url;
+  sysUpdateSplashPreview();
+  sysMarkDirty();
+  showToast("✅ Splash photo uploaded. Click Save settings to apply.");
+}
 async function saveSettingsPage() {
   const msg = document.getElementById("settingsSaveMsg");
   const btns = Array.from(document.querySelectorAll(".sys-save-btn"));
@@ -4426,11 +4995,13 @@ async function saveSettingsPage() {
       assistantHighScore: Math.round(num("setAssistantHighScore", prev.assistantHighScore ?? 6, 1, 100)),
       assistantHighSimilarity: hi,
       assistantMediumSimilarity: mid,
+      loginSplashUrl: (document.getElementById("setLoginSplashUrl")?.value || "").trim() || "/pup-san-pedro-campus.svg",
+      loginSplashCaption: (document.getElementById("setLoginSplashCaption")?.value || "").trim() || "PUP San Pedro Campus — Student Services Office",
     };
     const result = await api("/api/settings", { method: "PUT", body });
     if (msg) { msg.textContent = result.ok ? "Saved ✓" : (result.error || "Could not save settings."); msg.className = "sys-save-msg" + (result.ok ? " ok" : " err"); }
     showToast(result.ok ? "System settings saved." : (result.error || "Could not save settings."), result.ok ? undefined : "rgba(155,22,22,.85)");
-    if (result.ok) { sysMarkClean(); renderSettingsPage(); return; }
+    if (result.ok) { sysMarkClean(); void loadPublicSplash(); renderSettingsPage(); return; }
   } finally {
     btns.forEach((b) => { b.disabled = false; if (b.dataset.label) b.innerHTML = b.dataset.label; });
   }
@@ -5171,8 +5742,14 @@ async function refreshLiveData() {
   if (page === "page-admin") {
     await Promise.all([loadQueueData(), loadAdminActivity(), loadPendingAccounts(), loadAuditLog(), loadEmailLog()]);
     renderAdminPage();
+  } else if (page === "page-appointments") {
+    await Promise.all([loadQueueData(), loadModule("requests"), loadModule("idapps"), loadModule("events2"), loadModule("referrals")]);
+    renderAdminAppointments();
   } else if (page === "page-student") {
-    await loadModule("requests"); renderStudentPage();
+    await Promise.all([loadModule("requests"), loadModule("idapps"), loadModule("events2"), loadModule("referrals")]);
+    renderStudentPage();
+  } else if (page === "page-appointment") {
+    await renderMyAppointments();
   } else if (page === "page-scanner") {
     await loadScannerQueue();
   }

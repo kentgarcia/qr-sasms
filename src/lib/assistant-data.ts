@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
-import { serviceLabel } from "./appointments";
+import { displayStatus, serviceLabel } from "./appointments";
+import { requestServiceLabel } from "./service-requests";
 import { draftSubject, extractRefs } from "./assistant";
 import {
   analyzeMessage,
@@ -124,8 +125,8 @@ export type StatusAnswer = {
 function notFoundReply(ref: string, question: string): StatusAnswer {
   return {
     reply:
-      `I couldn't find ${ref} under your account. If the reference is correct, ` +
-      `an SSO staff member can look into it — would you like to create a support ticket?`,
+      `I couldn't find **${ref}** under your student account.\n\n` +
+      `Double-check the reference code (e.g. APT-001, EXC-..., IDA-..., TKT-...), or tap **Create Support Ticket** below so SSO staff can look into it for you.`,
     dataSource: null,
     items: [],
     totalTickets: null,
@@ -139,7 +140,7 @@ async function withTicketCount(ans: StatusAnswer, sn: string): Promise<StatusAns
   return {
     ...ans,
     totalTickets: total,
-    reply: `You currently have ${total} ticket${total === 1 ? "" : "s"}.\n\n${ans.reply}`,
+    reply: `You currently have **${total} support ticket${total === 1 ? "" : "s"}** on file.\n\n${ans.reply}`,
   };
 }
 
@@ -147,26 +148,53 @@ function describeTicket(t: { id: string; subject: string; category: string; stat
   const msgs = Array.isArray(t.msgs) ? t.msgs : [];
   const last = msgs.length ? (msgs[msgs.length - 1] as { ts?: string }) : null;
   return [
-    `Ticket ${t.id}`,
-    `Subject: ${t.subject || "—"}`,
-    `Category: ${t.category || "—"}`,
-    `Status: ${t.status}`,
-    `Last update: ${last?.ts || t.createdAt.toLocaleString("en-PH")}`,
+    `Ticket ${t.id} — ${t.status}`,
+    `• Subject: ${t.subject || "—"}`,
+    `• Category: ${t.category || "—"}`,
+    `• Last update: ${last?.ts || t.createdAt.toLocaleString("en-PH", { timeZone: "Asia/Manila" })}`,
   ].join("\n");
 }
 
-function describeServiceRequest(r: { id: string; service: string; subject: string; status: string; remarks: string }): string {
+function describeServiceRequest(r: {
+  id: string;
+  service: string;
+  subject: string;
+  status: string;
+  remarks: string;
+  appointmentCode?: string | null;
+  pickupDate?: string;
+  pickupTime?: string;
+}): string {
   const lines = [
-    `${r.service} request ${r.id}`,
-    r.subject ? `Subject: ${r.subject}` : null,
-    `Status: ${r.status}`,
-    r.remarks ? `Staff remarks: ${r.remarks}` : null,
+    `${requestServiceLabel(r.service)} (${r.id}) — ${r.status}`,
+    r.subject ? `• Purpose: ${r.subject}` : null,
+    r.pickupDate ? `• Pickup schedule: ${r.pickupDate}${r.pickupTime ? ` at ${r.pickupTime}` : ""}${r.appointmentCode ? ` (${r.appointmentCode})` : ""}` : null,
+    !r.pickupDate && r.appointmentCode ? `• Linked appointment: ${r.appointmentCode}` : null,
+    r.remarks ? `• Staff remarks: ${r.remarks}` : null,
   ].filter(Boolean);
   return lines.join("\n");
 }
 
-function describeAppointment(a: { code: string; serviceType: string; dateLabel: string; time: string; status: string }): string {
-  return `${a.code} · ${serviceLabel(a.serviceType)} · ${a.dateLabel} ${a.time} · Status: ${a.status}`;
+function describeAppointment(a: {
+  code: string;
+  serviceType: string;
+  serviceRefId?: string | null;
+  dateLabel: string;
+  time: string;
+  status: string;
+}): string {
+  const niceStatus = displayStatus(a.status);
+  const lines = [
+    `Appointment ${a.code} — ${niceStatus}`,
+    `• Service: ${serviceLabel(a.serviceType)}${a.serviceRefId ? ` (Ref: ${a.serviceRefId})` : ""}`,
+    `• Schedule: ${a.dateLabel} at ${a.time}`,
+  ];
+  if (["BOOKED", "RESCHEDULED", "CHECKED_IN"].includes(a.status)) {
+    lines.push("• Offline QR Pass: Ready — tap **Show QR Pass** below to view, download, or print.");
+  } else if (a.status === "PENDING_APPROVAL") {
+    lines.push("• Next step: Waiting for SSO Admin approval. You'll receive your QR pass by email once confirmed.");
+  }
+  return lines.join("\n");
 }
 
 async function lookupRef(
@@ -191,7 +219,7 @@ async function lookupRef(
           status: t.status,
           meta: [
             t.category ? `Category: ${t.category}` : null,
-            `Last update: ${last?.ts || t.createdAt.toLocaleString("en-PH")}`,
+            `Last update: ${last?.ts || t.createdAt.toLocaleString("en-PH", { timeZone: "Asia/Manila" })}`,
           ].filter((x): x is string => Boolean(x)),
           dataSource: `ticket:${t.id}`,
         },
@@ -360,7 +388,7 @@ export async function answerStatusQuestion(question: string, sn: string): Promis
           status: t.status,
           meta: [
             t.category ? `Category: ${t.category}` : null,
-            `Last update: ${last?.ts || t.createdAt.toLocaleString("en-PH")}`,
+            `Last update: ${last?.ts || t.createdAt.toLocaleString("en-PH", { timeZone: "Asia/Manila" })}`,
           ].filter((x): x is string => Boolean(x)),
           dataSource: `ticket:${t.id}`,
         });
@@ -414,18 +442,21 @@ export async function answerStatusQuestion(question: string, sn: string): Promis
   }
   if (wantAppointments) {
     const appt = await prisma.queueEntry.findFirst({
-      where: { studentId: sn, status: { in: ACTIVE_APPOINTMENT } },
+      where: { studentId: sn, status: { in: [...ACTIVE_APPOINTMENT, "PENDING_APPROVAL"] } },
       orderBy: { createdAt: "desc" },
     });
     if (appt) {
-      blocks.push(`Upcoming appointment\n${describeAppointment(appt)}`);
+      blocks.push(describeAppointment(appt));
       sources.push(`appointment:${appt.code}`);
       items.push({
         kind: "appointment",
         ref: appt.code,
         title: serviceLabel(appt.serviceType),
-        status: appt.status,
-        meta: [`${appt.dateLabel} ${appt.time}`.trim()],
+        status: displayStatus(appt.status),
+        meta: [
+          `${appt.dateLabel} · ${appt.time}`.trim(),
+          ...(appt.serviceRefId ? [`Linked ref: ${appt.serviceRefId}`] : []),
+        ],
         dataSource: `appointment:${appt.code}`,
       });
     }
@@ -434,9 +465,8 @@ export async function answerStatusQuestion(question: string, sn: string): Promis
   if (!blocks.length) {
     return {
       reply:
-        "I couldn't find any tickets, requests, or appointments under your account. " +
-        "If you expected to see something here, an SSO staff member can check — " +
-        "would you like to create a support ticket?",
+        "I didn't find any active appointments, requests, or support tickets under your account right now.\n\n" +
+        "You can book a visit, file a request, or open a support ticket if you expected to see a record here.",
       dataSource: null,
       items: [],
       totalTickets: null,
@@ -451,8 +481,8 @@ export async function answerStatusQuestion(question: string, sn: string): Promis
 export function billingNotice(question: string): StatusAnswer {
   return {
     reply:
-      "I don't have access to billing or payment records, so I can't check balances directly.\n\n" +
-      "You can create a support ticket and the appropriate office will be able to assist you.",
+      "I don't have access to tuition, billing, or payment records, so I can't check account balances directly.\n\n" +
+      "Good to know: **Student ID applications (New & Lost), Authentication, and Excuse Slips at the SSO require no payment.** For tuition or cashier inquiries, tap **Create Support Ticket** below so the right office can assist you.",
     dataSource: null,
     items: [],
     totalTickets: null,

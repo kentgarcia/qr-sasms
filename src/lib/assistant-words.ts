@@ -102,10 +102,67 @@ const SYNONYMS: Record<string, string> = {
   move: "reschedule",
   // pickup
   pickup: "pickup",
+  pikap: "pickup",
   claim: "pickup",
   claiming: "pickup",
   kuha: "pickup",
   kuhanin: "pickup",
+  // qr & offline pass
+  qr: "qr",
+  qrcode: "qr",
+  scanner: "qr",
+  scan: "qr",
+  barcode: "qr",
+  offline: "offline",
+  internet: "offline",
+  wifi: "offline",
+  download: "offline",
+  print: "offline",
+  pass: "qr",
+  // otp & gmail registration
+  otp: "otp",
+  code: "otp",
+  verify: "otp",
+  verification: "otp",
+  gmail: "email",
+  email: "email",
+  // no-show / missed visits
+  noshow: "noshow",
+  missed: "noshow",
+  miss: "noshow",
+  absent: "noshow",
+  nakapunta: "noshow",
+  // dashboard shortcuts
+  dashboard: "dashboard",
+  shortcut: "dashboard",
+  shortcuts: "dashboard",
+  upcoming: "dashboard",
+  served: "dashboard",
+  // password / reset / profile / approval / resubmit
+  forgot: "reset",
+  nakalimutan: "reset",
+  limot: "reset",
+  approval: "approval",
+  approve: "approval",
+  approved: "approval",
+  pending: "approval",
+  hintay: "approval",
+  profile: "profile",
+  pangalan: "profile",
+  kurso: "profile",
+  resubmit: "resubmit",
+  revision: "resubmit",
+  revise: "resubmit",
+  ibalik: "resubmit",
+  holiday: "hours",
+  holidays: "hours",
+  // common Taglish / campus typos
+  sked: "appointment",
+  isked: "appointment",
+  ekskyus: "excuse",
+  atentikasyon: "authentication",
+  kumpirma: "status",
+  aprubado: "status",
   // requirements
   requirements: "requirements",
   requirement: "requirements",
@@ -219,6 +276,22 @@ const PHRASES: Array<{ phrase: string; token: string }> = [
   { phrase: "magandang hapon", token: "greeting" },
   { phrase: "magandang gabi", token: "greeting" },
   { phrase: "see you", token: "farewell" },
+  { phrase: "qr code", token: "qr" },
+  { phrase: "qr pass", token: "qr" },
+  { phrase: "no internet", token: "offline" },
+  { phrase: "walang internet", token: "offline" },
+  { phrase: "cannot open link", token: "offline" },
+  { phrase: "no show", token: "noshow" },
+  { phrase: "no-show", token: "noshow" },
+  { phrase: "missed appointment", token: "noshow" },
+  { phrase: "my visits", token: "dashboard" },
+  { phrase: "next appointment", token: "dashboard" },
+  { phrase: "change password", token: "password" },
+  { phrase: "forgot password", token: "reset" },
+  { phrase: "email otp", token: "otp" },
+  { phrase: "gmail otp", token: "otp" },
+  { phrase: "send otp", token: "otp" },
+  { phrase: "strong password", token: "password" },
 ];
 
 // Closed typo-repair allowlist (spec §5.5): canonical words only, len>=5,
@@ -229,6 +302,7 @@ const TYPO_ALLOWLIST = [
   "complaint", "bulletin", "organization", "representative", "requirements",
   "cancel", "reschedule", "billing", "password", "register", "hours",
   "guide", "greeting", "thanks", "farewell", "capabilities", "generalvisit",
+  "dashboard", "offline", "approval", "profile", "resubmit", "noshow",
 ];
 
 export function foldDiacritics(s: string): string {
@@ -415,8 +489,8 @@ export function analyzeMessage(raw: string): WordAnalysis {
     if (!c || c.length < 2) continue;
     if (WORD_STOP_WORDS.has(c)) continue;
     // Keep scoring parity with extractKeywords: single chars/digits dropped,
-    // meaningful short codes (id, or, tor) kept.
-    if (c.length < 3 && c !== "id" && c !== "or" && c !== "tor") continue;
+    // meaningful short codes (id, qr, or, sn, tor) kept.
+    if (c.length < 3 && c !== "id" && c !== "qr" && c !== "or" && c !== "sn" && c !== "tor") continue;
     canonical.push(c);
   }
   for (const pt of phraseTokens) {
@@ -461,10 +535,11 @@ export function normalizeStarterIntent(message: string): string {
 
 export function matchStarterIntent(message: string): StarterIntent | null {
   const norm = normalizeMessage(message);
-  if (GREETING_SET.has(norm)) return "greeting";
-  if (THANKS_SET.has(norm)) return "thanks";
-  if (FAREWELL_SET.has(norm)) return "farewell";
-  if (CAPABILITY_SET.has(norm)) return "capabilities";
+  const withoutPo = norm.replace(/\s+(po|opo)$/, "").trim();
+  if (GREETING_SET.has(norm) || GREETING_SET.has(withoutPo)) return "greeting";
+  if (THANKS_SET.has(norm) || THANKS_SET.has(withoutPo)) return "thanks";
+  if (FAREWELL_SET.has(norm) || FAREWELL_SET.has(withoutPo)) return "farewell";
+  if (CAPABILITY_SET.has(norm) || CAPABILITY_SET.has(withoutPo)) return "capabilities";
   const a = analyzeMessage(message);
   if (a.tokenSet.has("guide")) return "guide";
   if (a.tokenSet.has("capabilities")) return "capabilities";

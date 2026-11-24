@@ -89,12 +89,44 @@ export function displayStatus(status: string | null | undefined): string {
   return APPOINTMENT_DISPLAY_STATUSES[s] || s;
 }
 
+/** Return { year, month (1-12), day } for `d` in Asia/Manila. */
+export function manilaDateParts(d: Date = new Date()): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  return {
+    year: Number(parts.find((p) => p.type === "year")?.value || 1970),
+    month: Number(parts.find((p) => p.type === "month")?.value || 1),
+    day: Number(parts.find((p) => p.type === "day")?.value || 1),
+  };
+}
+
+/** Parse "September 26, 2026" into calendar parts without host-timezone drift. */
+function parseDateLabelParts(dateLabel: string): { year: number; month: number; day: number; weekday: number } | null {
+  const probe = new Date(`${dateLabel} 12:00:00 UTC`);
+  if (Number.isNaN(probe.getTime())) return null;
+  const normalized = probe.toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  if (normalized !== dateLabel) return null;
+  return {
+    year: probe.getUTCFullYear(),
+    month: probe.getUTCMonth() + 1,
+    day: probe.getUTCDate(),
+    weekday: probe.getUTCDay(),
+  };
+}
+
 /** Parse "September 26, 2026" + "8:00 AM" into a Date at Asia/Manila (+08:00). */
 export function parseSlotStart(dateLabel: string, time: string): Date | null {
-  const probe = new Date(`${dateLabel} 12:00:00`);
-  if (Number.isNaN(probe.getTime())) return null;
-  const normalized = probe.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  if (normalized !== dateLabel) return null;
+  const parts = parseDateLabelParts(dateLabel);
+  if (!parts) return null;
   const m = /^\s*(\d{1,2}):(\d{2})\s*(AM|PM)\s*$/i.exec(time);
   if (!m) return null;
   let hh = parseInt(m[1], 10);
@@ -103,27 +135,30 @@ export function parseSlotStart(dateLabel: string, time: string): Date | null {
   if (hh < 1 || hh > 12 || mm > 59) return null;
   if (ap === "AM") hh = hh === 12 ? 0 : hh;
   else hh = hh === 12 ? 12 : hh + 12;
-  const iso = `${probe.getFullYear()}-${String(probe.getMonth() + 1).padStart(2, "0")}-${String(probe.getDate()).padStart(2, "0")}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00+08:00`;
+  const iso = `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00+08:00`;
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
 export function dateISOPHT(dateLabel: string): string {
-  const probe = new Date(`${dateLabel} 12:00:00`);
-  if (Number.isNaN(probe.getTime())) return "";
-  return `${probe.getFullYear()}-${String(probe.getMonth() + 1).padStart(2, "0")}-${String(probe.getDate()).padStart(2, "0")}`;
+  const parts = parseDateLabelParts(dateLabel);
+  if (!parts) return "";
+  return `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 }
 
-/** Canonical calendar rule: future weekday within current or next month. */
+/** Canonical calendar rule: future weekday within current or next month (Asia/Manila). */
 export function validAppointmentDate(label: string): boolean {
-  const parsed = new Date(`${label} 12:00:00`);
-  if (Number.isNaN(parsed.getTime())) return false;
-  const normalized = parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  if (normalized !== label) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const maxDate = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-  return parsed >= today && parsed <= maxDate && parsed.getDay() !== 0 && parsed.getDay() !== 6;
+  const parts = parseDateLabelParts(label);
+  if (!parts) return false;
+  if (parts.weekday === 0 || parts.weekday === 6) return false;
+  const today = manilaDateParts(new Date());
+  const todayNum = today.year * 10000 + today.month * 100 + today.day;
+  const targetNum = parts.year * 10000 + parts.month * 100 + parts.day;
+  if (targetNum < todayNum) return false;
+  // Last day of next month in Manila calendar
+  const maxDate = new Date(Date.UTC(today.year, today.month + 1, 0));
+  const maxNum = maxDate.getUTCFullYear() * 10000 + (maxDate.getUTCMonth() + 1) * 100 + maxDate.getUTCDate();
+  return targetNum <= maxNum;
 }
 
 export interface ScheduleSettings {
@@ -211,7 +246,9 @@ export function slotCapacity(service: string, configs: Record<string, ServiceCon
 
 export function serviceOfferedOn(service: string, dateLabel: string, configs: Record<string, ServiceConfig>): boolean {
   const c = configs[service];
-  const day = new Date(`${dateLabel} 12:00:00`).getDay();
+  const parts = parseDateLabelParts(dateLabel);
+  if (!parts) return false;
+  const day = parts.weekday;
   if (!c || !c.active) return day !== 0 && day !== 6;
   return c.weekdays.includes(day);
 }
@@ -483,6 +520,189 @@ export interface LinkedAppointmentInput {
   notes?: string;
 }
 
+export async function nextAppointmentCode(tx: Prisma.TransactionClient): Promise<string> {
+  const base = await tx.queueEntry.count({ where: { status: { not: "CANCELLED" } } });
+  let n = base + 1;
+  let code = "";
+  for (let i = 0; i < 1000; i++) {
+    code = `APT-${String(n).padStart(3, "0")}`;
+    const clash = await tx.queueEntry.findUnique({ where: { code } });
+    if (!clash) break;
+    n++;
+  }
+  return code;
+}
+
+/**
+ * Mirror appointment code/date/time onto the linked transaction row
+ * (ServiceRequest, EventRequest, Referral, IdApplication) inside a transaction.
+ */
+export async function syncAppointmentFieldsToLinked(
+  tx: Prisma.TransactionClient,
+  input: {
+    service: string;
+    linkedId: string | null | undefined;
+    code: string;
+    dateLabel: string;
+    time: string;
+    slotStart?: Date | null;
+    clear?: boolean;
+  }
+) {
+  if (!input.linkedId) return;
+  const svc = (input.service || "").toUpperCase();
+  try {
+    if (svc === "GENERAL" || svc === "AUTH" || svc === "EXCUSE") {
+      const exists = await tx.serviceRequest.findUnique({ where: { id: input.linkedId }, select: { id: true, service: true } });
+      if (!exists) return;
+      if (exists.service === "GENERAL_VISIT") {
+        await tx.serviceRequest.update({
+          where: { id: input.linkedId },
+          data: input.clear
+            ? { appointmentCode: null }
+            : {
+                appointmentCode: input.code,
+                dateLabel: input.dateLabel,
+                time: input.time,
+                ...(input.slotStart ? { slotStartAt: input.slotStart } : {}),
+              },
+        });
+      } else {
+        await tx.serviceRequest.update({
+          where: { id: input.linkedId },
+          data: input.clear
+            ? { appointmentCode: null }
+            : { appointmentCode: input.code, pickupDate: input.dateLabel, pickupTime: input.time },
+        });
+      }
+      return;
+    }
+    if (svc === "EVENT") {
+      const exists = await tx.eventRequest.findUnique({ where: { id: input.linkedId }, select: { id: true } });
+      if (!exists) return;
+      await tx.eventRequest.update({
+        where: { id: input.linkedId },
+        data: input.clear
+          ? { appointmentCode: null, appointmentDate: "", appointmentTime: "" }
+          : { appointmentCode: input.code, appointmentDate: input.dateLabel, appointmentTime: input.time },
+      });
+      return;
+    }
+    if (svc === "PSYCH") {
+      const exists = await tx.referral.findUnique({ where: { id: input.linkedId }, select: { id: true } });
+      if (!exists) return;
+      await tx.referral.update({
+        where: { id: input.linkedId },
+        data: input.clear
+          ? { appointmentCode: null, appointmentDate: "", appointmentTime: "" }
+          : { appointmentCode: input.code, appointmentDate: input.dateLabel, appointmentTime: input.time },
+      });
+    }
+  } catch {
+    // Best-effort sync so primary booking transition does not fail on stale links.
+  }
+}
+
+/**
+ * Create or update a confirmed QueueEntry for an admin-scheduled pickup
+ * (Authentication, Excuse Slip, ID Application) so pickups appear in the
+ * appointment manifest, calendar, and QR scanner.
+ */
+export async function upsertPickupQueueEntry(
+  tx: Prisma.TransactionClient,
+  input: {
+    service: "AUTH" | "EXCUSE" | "ID_NEW" | "ID_LOST";
+    linkedId: string;
+    studentId: string;
+    studentName: string;
+    pickupDate: string;
+    pickupTime: string;
+    pickupNote?: string;
+    bookedBy: string;
+  }
+) {
+  const slotStart = parseSlotStart(input.pickupDate, input.pickupTime);
+  const durationMin = APPOINTMENT_SERVICES[input.service]?.durationMin || 10;
+  const slotEnd = slotStart ? new Date(slotStart.getTime() + durationMin * 60000) : null;
+  const dateISO = dateISOPHT(input.pickupDate);
+
+  const existing = await tx.queueEntry.findFirst({
+    where: {
+      serviceRefId: input.linkedId,
+      serviceType: input.service,
+      status: { notIn: ["CANCELLED", "NO_SHOW"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (existing) {
+    return tx.queueEntry.update({
+      where: { id: existing.id },
+      data: {
+        dateLabel: input.pickupDate,
+        time: input.pickupTime,
+        dateISO,
+        slotStartAt: slotStart,
+        slotEndAt: slotEnd,
+        status: existing.status === "SERVED" ? "SERVED" : "BOOKED",
+        notes: (input.pickupNote || existing.notes || "").slice(0, 500),
+        bookedBy: input.bookedBy,
+      },
+    });
+  }
+
+  // Avoid colliding with the partial unique index (studentId, dateLabel) for active rows.
+  const sameDayActive = await tx.queueEntry.findFirst({
+    where: {
+      studentId: input.studentId,
+      dateLabel: input.pickupDate,
+      status: { in: [...ACTIVE_STATUSES, "PENDING", PENDING_APPROVAL] },
+    },
+    select: { code: true },
+  });
+  if (sameDayActive) {
+    // Reuse student's existing same-day appointment code reference if already booked that day.
+    return null;
+  }
+
+  const code = await nextAppointmentCode(tx);
+  return tx.queueEntry.create({
+    data: {
+      code,
+      studentId: input.studentId,
+      name: input.studentName,
+      time: input.pickupTime,
+      dateLabel: input.pickupDate,
+      served: false,
+      serviceType: input.service,
+      serviceRefId: input.linkedId,
+      status: "BOOKED",
+      dateISO,
+      slotStartAt: slotStart,
+      slotEndAt: slotEnd,
+      bookedBy: input.bookedBy,
+      purpose: `${serviceLabel(input.service)} Pickup`,
+      notes: (input.pickupNote || "").slice(0, 500),
+    },
+  });
+}
+
+/**
+ * Mark any active pickup QueueEntry linked to `linkedId` as SERVED.
+ */
+export async function completePickupQueueEntry(
+  tx: Prisma.TransactionClient,
+  linkedId: string
+) {
+  await tx.queueEntry.updateMany({
+    where: {
+      serviceRefId: linkedId,
+      status: { in: [...ACTIVE_STATUSES, "PENDING", PENDING_APPROVAL] },
+    },
+    data: { status: "SERVED", served: true },
+  });
+}
+
 /**
  * Create an appointment inside an existing slot-locked transaction.
  * Enforces one-active-appointment-per-student-per-date + per-service capacity
@@ -501,15 +721,7 @@ export async function createLinkedAppointment(tx: Prisma.TransactionClient, inpu
   if (taken >= input.capacity) {
     throw slotError(409, "That time slot was just booked. Please choose another available time.", "TIME_SLOT_TAKEN");
   }
-  const base = await tx.queueEntry.count({ where: { status: { not: "CANCELLED" } } });
-  let n = base + 1;
-  let code = "";
-  for (let i = 0; i < 1000; i++) {
-    code = `APT-${String(n).padStart(3, "0")}`;
-    const clash = await tx.queueEntry.findUnique({ where: { code } });
-    if (!clash) break;
-    n++;
-  }
+  const code = await nextAppointmentCode(tx);
   return tx.queueEntry.create({
     data: {
       code,

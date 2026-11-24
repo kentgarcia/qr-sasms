@@ -4,6 +4,7 @@ import { requireSession, jsonError } from "@/lib/http";
 import { addAudit, addNotification, notifyStudentByEmail } from "@/lib/notify";
 import { withTs } from "@/lib/format";
 import { pushRequestHistory } from "@/lib/service-requests";
+import { completePickupQueueEntry, upsertPickupQueueEntry } from "@/lib/appointments";
 
 /**
  * Pickup leg for ID Application (spec §2):
@@ -27,9 +28,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return jsonError(409, `This application is ${existing.status} and cannot be marked as claimed.`, "INVALID_STATUS");
     }
     const history = pushRequestHistory(existing.history, { status: "Claimed", by: auth.name, note: "Picked up" });
-    const updated = await prisma.idApplication.update({
-      where: { id },
-      data: { status: "Claimed", pickedUpAt: new Date(), history },
+    const updated = await prisma.$transaction(async (tx) => {
+      const row = await tx.idApplication.update({
+        where: { id },
+        data: { status: "Claimed", pickedUpAt: new Date(), history },
+      });
+      await completePickupQueueEntry(tx, id);
+      return row;
     });
     await addAudit("INFO", `ID app ${id} claimed — recorded by ${auth.name}.`);
     await notifyStudentByEmail({
@@ -57,23 +62,47 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
   }
 
-  const history = pushRequestHistory(existing.history, {
-    status: "Ready for Claiming",
-    by: auth.name,
-    note: `${pickupDate} ${pickupTime}`.trim(),
-  });
-  const updated = await prisma.idApplication.update({
-    where: { id },
-    data: { pickupDate, pickupTime, pickupNote, status: "Ready for Claiming", history },
+  const serviceKey = /lost/i.test(existing.type) ? "ID_LOST" : "ID_NEW";
+  const { updated, queueEntry } = await prisma.$transaction(async (tx) => {
+    const qe = await upsertPickupQueueEntry(tx, {
+      service: serviceKey,
+      linkedId: id,
+      studentId: existing.sn,
+      studentName: existing.name,
+      pickupDate,
+      pickupTime,
+      pickupNote,
+      bookedBy: auth.name,
+    });
+    const history = pushRequestHistory(existing.history, {
+      status: "Ready for Claiming",
+      by: auth.name,
+      note: `${pickupDate} ${pickupTime}${qe ? ` (${qe.code})` : ""}`.trim(),
+    });
+    const row = await tx.idApplication.update({
+      where: { id },
+      data: { pickupDate, pickupTime, pickupNote, status: "Ready for Claiming", history },
+    });
+    return { updated: row, queueEntry: qe };
   });
 
-  await addAudit("INFO", `ID app ${id} pickup scheduled (${pickupDate} ${pickupTime}) by ${auth.name}.`);
+  await addAudit("INFO", `ID app ${id} pickup scheduled (${pickupDate} ${pickupTime}${queueEntry ? `, ${queueEntry.code}` : ""}) by ${auth.name}.`);
   await notifyStudentByEmail({
     studentId: existing.sn,
     name: existing.name,
     title: "Student ID — Ready for Claiming",
-    message: `Your ID is ready! Please claim it at the SSO on ${pickupDate} at ${pickupTime}. Bring one valid ID.${pickupNote ? `\n\nNote: ${pickupNote}` : ""}`,
+    message: `Your ID is ready! Please claim it at the SSO on ${pickupDate} at ${pickupTime}. Bring one valid ID.${queueEntry ? ` Appointment code: ${queueEntry.code}.` : ""}${pickupNote ? `\n\nNote: ${pickupNote}` : ""}`,
     ref: id,
+    qrAppointment: queueEntry
+      ? {
+          code: queueEntry.code,
+          studentId: existing.sn,
+          dateISO: queueEntry.dateISO || "",
+          dateLabel: pickupDate,
+          time: pickupTime,
+          serviceLabel: `${existing.type} Pickup`,
+        }
+      : null,
   });
   await addNotification(existing.sn, "ID Ready for Claiming", `Your ${existing.type} is ready for pickup on ${pickupDate} at ${pickupTime}.`);
 

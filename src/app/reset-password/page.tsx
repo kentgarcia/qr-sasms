@@ -15,8 +15,19 @@ export default function ResetPasswordPage() {
     setToken(new URLSearchParams(window.location.search).get("token") || "");
   }, []);
 
+  const hasLen = password.length >= 9;
+  const hasUp = /[A-Z]/.test(password);
+  const hasLow = /[a-z]/.test(password);
+  const hasNum = /[0-9]/.test(password);
+  const hasSpec = /[^A-Za-z0-9]/.test(password);
+  const strongOk = hasLen && hasUp && hasLow && hasNum && hasSpec;
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!strongOk) {
+      setMessage("Password must be more than 8 characters (9+) and include uppercase, lowercase, a number, and a special character.");
+      return;
+    }
     if (password !== confirmPassword) {
       setMessage("Passwords do not match.");
       return;
@@ -62,12 +73,19 @@ export default function ResetPasswordPage() {
             <label className="input-label" htmlFor="new-password">New password</label>
             <div style={{ position: "relative" }}>
               <i className="fa-solid fa-lock" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(30,5,5,.62)", fontSize: 13, pointerEvents: "none" }} />
-              <input id="new-password" type="password" required minLength={6} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 6 characters" className="glass-input" style={{ paddingLeft: 38 }} />
+              <input id="new-password" type="password" required minLength={9} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="9+ chars with upper, lower, number & symbol" className="glass-input" style={{ paddingLeft: 38 }} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px", marginTop: 8, fontSize: 11, color: "rgba(30,5,5,.65)" }}>
+              <span style={{ color: hasLen ? "#15803d" : undefined, fontWeight: hasLen ? 700 : 400 }}><i className={hasLen ? "fa-solid fa-circle-check" : "fa-regular fa-circle"} style={{ marginRight: 4 }} />More than 8 chars (9+)</span>
+              <span style={{ color: hasUp ? "#15803d" : undefined, fontWeight: hasUp ? 700 : 400 }}><i className={hasUp ? "fa-solid fa-circle-check" : "fa-regular fa-circle"} style={{ marginRight: 4 }} />Uppercase (A-Z)</span>
+              <span style={{ color: hasLow ? "#15803d" : undefined, fontWeight: hasLow ? 700 : 400 }}><i className={hasLow ? "fa-solid fa-circle-check" : "fa-regular fa-circle"} style={{ marginRight: 4 }} />Lowercase (a-z)</span>
+              <span style={{ color: hasNum ? "#15803d" : undefined, fontWeight: hasNum ? 700 : 400 }}><i className={hasNum ? "fa-solid fa-circle-check" : "fa-regular fa-circle"} style={{ marginRight: 4 }} />Number (0-9)</span>
+              <span style={{ gridColumn: "1/-1", color: hasSpec ? "#15803d" : undefined, fontWeight: hasSpec ? 700 : 400 }}><i className={hasSpec ? "fa-solid fa-circle-check" : "fa-regular fa-circle"} style={{ marginRight: 4 }} />Special character (!@#$%^&amp;*)</span>
             </div>
             <label className="input-label" htmlFor="confirm-password" style={{ marginTop: 14 }}>Confirm new password</label>
             <div style={{ position: "relative" }}>
               <i className="fa-solid fa-shield-halved" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(30,5,5,.62)", fontSize: 13, pointerEvents: "none" }} />
-              <input id="confirm-password" type="password" required minLength={6} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Re-enter your new password" className="glass-input" style={{ paddingLeft: 38 }} />
+              <input id="confirm-password" type="password" required minLength={9} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Re-enter your new password" className="glass-input" style={{ paddingLeft: 38 }} />
             </div>
             {message && <p style={{ marginTop: 10, fontSize: 12, color: "#991b1b", lineHeight: 1.5 }}>{message}</p>}
             <button type="submit" disabled={submitting || !token} className="btn-maroon" style={{ width: "100%", marginTop: 18, padding: 13, borderRadius: 14 }}>

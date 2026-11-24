@@ -481,46 +481,187 @@ async function main() {
     },
   });
 
-  // FAQ categories (deep-link allowlist alignment).
-  for (const name of ["Appointments", "Student ID", "Events", "Service Requests", "General"]) {
+  // FAQ categories (aligned with every active STARS module & deep-link allowlist).
+  for (const name of [
+    "Appointments",
+    "Student ID",
+    "Service Requests",
+    "Events",
+    "QR Pass & Scanner",
+    "Account & Security",
+    "General",
+  ]) {
     await prisma.faqCategory.upsert({ where: { name }, update: {}, create: { name } });
   }
 
-  const faqCount = await prisma.faq.count();
-  if (faqCount === 0) {
-    await prisma.faq.createMany({
-      data: [
-        { id: "FAQ-SEED1", cat: "Appointments", q: "How do I book an Authentication or Excuse Slip visit?", a: "Go to Appointments → Book Appointment, choose Authentication or Excuse Slip, enter the purpose and copies, then pick a date and time slot." },
-        { id: "FAQ-SEED2", cat: "Appointments", q: "How will I know my appointment is confirmed?", a: "Your booking appears immediately under My Appointments with its code, and the SSO is notified." },
-        { id: "FAQ-SEED3", cat: "Student ID", q: "What do I need to bring when claiming my ID?", a: "Bring one valid ID and your QR code/reference number from this portal." },
-        { id: "FAQ-SEED4", cat: "Student ID", q: "Is there a payment for a lost ID replacement?", a: "No payment is required for a lost ID replacement. Upload your signed Affidavit of Loss in the ID Application module." },
-        { id: "FAQ-SEED5", cat: "Events", q: "How early should our org file an event request?", a: "At least 10 working days before the event date, with your adviser's endorsement attached." },
-        { id: "FAQ-SEED7", cat: "Appointments", q: "How do I request an Excuse Slip?", a: "Go to Appointments → Book Appointment, choose Excuse Slip, enter the purpose, then pick a date and time slot. Bring supporting documents to your visit." },
-        { id: "FAQ-SEED6", cat: "General", q: "What are the SSO office hours?", a: "Monday to Friday, 8:00 AM – 5:00 PM (no noon break)." },
-      ],
-    });
-  }
-  const extraFaqs = [
-    { id: "FAQ-SEED8", cat: "Service Requests", q: "How do I track my Authentication or Excuse Slip request?", a: "1. Open Service Requests. 2. Find your request by its code. 3. Follow the steps Pending Review → Approved → Ready for Pickup → Pickup Scheduled → Completed. You will be notified when it is ready for pickup." },
-    { id: "FAQ-SEED9", cat: "Events", q: "Who can file an event request for our organization?", a: "1. An active organization representative files the request. 2. Attach your adviser's endorsement. 3. Track review in Event Requests. Only representatives may file; booking a consultation visit is optional." },
+  // Comprehensive, system-accurate FAQs (idempotent upsert so existing DBs get updated).
+  const seededFaqs = [
+    {
+      id: "FAQ-SEED1",
+      cat: "Service Requests",
+      q: "How do I request Authentication or an Excuse Slip?",
+      a: "Authentication and Excuse Slip are request-first services (no direct slot booking):\n1. Open Book Appointment and choose Authentication or Excuse Slip.\n2. Enter the purpose, number of copies, and attach supporting documents if needed, then submit.\n3. Track progress under My Appointments (Pending Review → Approved → Ready for Pickup → Pickup Scheduled → Completed).\n4. Once ready, SSO staff schedule your pickup and generate an APT-### appointment with an offline QR pass.",
+    },
+    {
+      id: "FAQ-SEED2",
+      cat: "Appointments",
+      q: "How will I know my appointment is confirmed?",
+      a: "Student bookings start as Pending Approval until an SSO Admin reviews them. Once approved:\n1. Status changes to Confirmed under My Appointments (and your Dashboard Upcoming card).\n2. You receive an in-app notification and a confirmation email containing your APT-### code and an embedded offline QR pass.",
+    },
+    {
+      id: "FAQ-SEED3",
+      cat: "Student ID",
+      q: "What do I need to bring when claiming my ID?",
+      a: "Bring one valid ID and your Appointment QR Pass (saved PNG, printed slip, or embedded email QR) along with your APT-### / IDA- reference number. No payment is required.",
+    },
+    {
+      id: "FAQ-SEED4",
+      cat: "Student ID",
+      q: "Is there a payment for a lost ID replacement?",
+      a: "No payment is required for a lost ID replacement. Upload your OR receipt and a signed Affidavit of Loss in the ID Application module (you can download the affidavit template from Forms & Downloads).",
+    },
+    {
+      id: "FAQ-SEED5",
+      cat: "Events",
+      q: "How early should our org file an event request?",
+      a: "Submit event requests at least 10 working days before the event date, with your adviser's endorsement attached. Only an active organization representative can file event requests.",
+    },
+    {
+      id: "FAQ-SEED6",
+      cat: "General",
+      q: "What are the SSO office hours?",
+      a: "PUP San Pedro Student Services Office hours are Monday to Friday, 8:00 AM – 5:00 PM (Philippine Time, no noon break). The office is closed on weekends and declared holidays.",
+    },
+    {
+      id: "FAQ-SEED7",
+      cat: "Service Requests",
+      q: "How do I request an Excuse Slip?",
+      a: "1. Open Book Appointment and select Excuse Slip.\n2. Fill in your purpose/reason, number of copies, and upload supporting documents (e.g. medical certificate).\n3. Wait for SSO review — once approved and ready, the SSO schedules your pickup and sends your APT-### code and offline QR pass.",
+    },
+    {
+      id: "FAQ-SEED8",
+      cat: "Service Requests",
+      q: "How do I track my Authentication or Excuse Slip request?",
+      a: "Open My Appointments (or click the Upcoming / My Visits shortcut on your Dashboard) to view all open requests and synced pickups. Follow the steps: Pending Review → Approved → Ready for Pickup → Pickup Scheduled → Completed. You can also paste your AUT- or EXC- reference code right here in chat.",
+    },
+    {
+      id: "FAQ-SEED9",
+      cat: "Events",
+      q: "Who can file an event request for our organization?",
+      a: "Only an active organization representative assigned by SSO staff may file an event request. Attach your adviser's endorsement at least 10 working days before the event. Booking an Event consultation appointment is optional and syncs automatically to the event request.",
+    },
+    {
+      id: "FAQ-SEED10",
+      cat: "QR Pass & Scanner",
+      q: "How do I get and use my offline Appointment QR Pass?",
+      a: "Every confirmed appointment and scheduled pickup includes a tamper-evident offline QR pass:\n1. Open My Appointments (or click Next Appointment on your Dashboard) and click View.\n2. Click Download PNG or Print Pass before going to campus, or use the QR pass attached to your confirmation/pickup email.\n3. Present it at the SSO Service Desk — staff can scan it even when the portal link cannot be accessed.",
+    },
+    {
+      id: "FAQ-SEED11",
+      cat: "QR Pass & Scanner",
+      q: "How does check-in with the QR scanner work at the SSO desk?",
+      a: "Show your saved PNG, printed QR pass, or email QR at the SSO Service Desk. Staff scan the signed QR code to verify your appointment immediately, check you in, and mark your visit or pickup completed — which also automatically updates your linked Service Request or ID Application.",
+    },
+    {
+      id: "FAQ-SEED12",
+      cat: "Account & Security",
+      q: "How do I create a student account in STARS?",
+      a: "1. Click Register here on the sign-in page and enter your details + official PUP San Pedro Student Number (must exist in the SSO masterlist).\n2. Enter your Gmail or PUP email address and click Send OTP to receive a 6-digit verification code (valid for 10 minutes).\n3. Create a strong password (more than 8 characters, with uppercase, lowercase, a number, and a special character) and confirm it.\n4. Submit and wait for SSO Admin approval before signing in.",
+    },
+    {
+      id: "FAQ-SEED13",
+      cat: "Account & Security",
+      q: "What are the password requirements for STARS accounts?",
+      a: "Passwords must be strictly more than 8 characters (9–128 characters) and contain at least one uppercase letter (A–Z), one lowercase letter (a–z), one number (0–9), and one special character (such as !@#$%^&*). Passwords cannot contain your student number or email username.",
+    },
+    {
+      id: "FAQ-SEED14",
+      cat: "Account & Security",
+      q: "How do I reset or change my password?",
+      a: "If you forgot your password, click Forgot password? on the sign-in page and open the reset link sent to your email. If you are already signed in, go to Account → Change Password. Both require a strong password (9+ chars with uppercase, lowercase, number, and special character).",
+    },
+    {
+      id: "FAQ-SEED15",
+      cat: "Appointments",
+      q: "How do I book a General Visit, Event Consultation, or Counseling appointment?",
+      a: "1. Open Book Appointment and choose General Visit, Event Request, or Psychological Intervention.\n2. Select an available weekday (Monday–Friday, within the current or next month) and an open time slot.\n3. Submit your booking — once approved by the SSO Admin, you receive a confirmed APT-### code and offline QR pass. Limit: one active appointment per student per date.",
+    },
+    {
+      id: "FAQ-SEED16",
+      cat: "Appointments",
+      q: "How do I reschedule or cancel my appointment?",
+      a: "Open My Appointments and click Reschedule or Cancel on your active booking. Rules: a 24-hour cutoff applies before the original slot, you can reschedule up to 2 times (keeping the same APT-### code), and cancelled codes are never reused. Past or no-show visits are read-only history.",
+    },
+    {
+      id: "FAQ-SEED17",
+      cat: "Appointments",
+      q: "What happens if I miss my appointment (No Show)?",
+      a: "Missed appointments are marked as No Show and become read-only history. If you still need assistance, book a new available weekday slot. For missed document/ID pickups, your request returns to Ready for Pickup so SSO staff can schedule a new pickup slot.",
+    },
+    {
+      id: "FAQ-SEED18",
+      cat: "Student ID",
+      q: "How do I apply for a New Student ID?",
+      a: "1. Open ID Application and select New.\n2. Upload your Official Receipt (OR) and enter the required details.\n3. Track progress: Pending → OR Verified → Approved → Processing → Ready for Claiming.\n4. When ready, the SSO schedules your pickup with an APT-### code and offline QR pass. Bring one valid ID when claiming.",
+    },
+    {
+      id: "FAQ-SEED19",
+      cat: "General",
+      q: "How do the Dashboard KPI shortcuts work?",
+      a: "On your Student Dashboard, the top summary cards act as direct shortcuts: click My Visits to view all transactions, Upcoming to view active bookings and scheduled pickups, Served to view completed history, or Next Appointment to open your upcoming appointment details and QR pass right away.",
+    },
+    {
+      id: "FAQ-SEED20",
+      cat: "General",
+      q: "How do Psychological Intervention and Referrals work?",
+      a: "The SSO offers confidential 45-minute Psychological Intervention sessions. File a Referral or book a Psychological Intervention visit under Book Appointment. Details are private — only you and authorized SSO admins can view them, scanner views display 'Reserved — Confidential', and the chatbot never reads referral records.",
+    },
+    {
+      id: "FAQ-SEED21",
+      cat: "General",
+      q: "How do I file a student complaint?",
+      a: "Open the Complaints module, select a category, describe your concern, attach evidence if needed, and choose Standard or Confidential handling. For privacy, the chatbot cannot read or display complaint details; SSO staff follow up through official channels.",
+    },
+    {
+      id: "FAQ-SEED22",
+      cat: "General",
+      q: "Where can I download official SSO forms and templates?",
+      a: "Open Forms & Downloads from the sidebar to download official templates such as the Affidavit of Loss (for Lost ID replacement) and the Event Clearance Checklist.",
+    },
+    {
+      id: "FAQ-SEED23",
+      cat: "General",
+      q: "How do Help Desk support tickets work?",
+      a: "If you have an issue the assistant cannot resolve, open Help Desk and click + New Ticket (or use the Create Ticket option in chat). Staff reply directly inside the thread (Open → Answered → Closed). Tickets are closed by SSO staff once resolved.",
+    },
+    {
+      id: "FAQ-SEED24",
+      cat: "Account & Security",
+      q: "How do I update my name, email, course, or year level?",
+      a: "Open your Account page and submit a Profile Change request. All profile updates go through SSO staff verification before taking effect, and you will be notified once approved.",
+    },
   ];
-  for (const f of extraFaqs) {
-    await prisma.faq.upsert({ where: { id: f.id }, update: {}, create: f });
+  for (const f of seededFaqs) {
+    await prisma.faq.upsert({
+      where: { id: f.id },
+      update: { cat: f.cat, q: f.q, a: f.a },
+      create: f,
+    });
   }
 
   // Chat session + messages (front-door → escalation loop demo).
   await prisma.chatSession.upsert({
     where: { id: "CHAT-SEED01" },
     update: {},
-    create: { id: "CHAT-SEED01", userId: student.id, studentId: "2024-00123-SP-0", subject: "Seed: excuse slip help", createdAt: daysAgo(1) },
+    create: { id: "CHAT-SEED01", userId: student.id, studentId: "2024-00123-SP-0", subject: "Excuse slip help", createdAt: daysAgo(1) },
   });
   const chatMsgCount = await prisma.chatMessage.count({ where: { sessionId: "CHAT-SEED01" } });
   if (chatMsgCount === 0) {
     await prisma.chatMessage.createMany({
       data: [
-        { sessionId: "CHAT-SEED01", role: "student", text: "Seed: How do I request an Excuse Slip?" },
-        { sessionId: "CHAT-SEED01", role: "assistant", text: "Seed: Go to Appointments → Book Appointment, choose Excuse Slip, enter the purpose, then pick a date and time slot.", faqId: "FAQ-SEED7", confidence: "high" },
-        { sessionId: "CHAT-SEED01", role: "student", text: "Seed: I need help with my specific case." },
+        { sessionId: "CHAT-SEED01", role: "student", text: "How do I request an Excuse Slip?" },
+        { sessionId: "CHAT-SEED01", role: "assistant", text: seededFaqs[6].a, faqId: "FAQ-SEED7", confidence: "high" },
+        { sessionId: "CHAT-SEED01", role: "student", text: "I need help with my specific case." },
       ],
     });
   }

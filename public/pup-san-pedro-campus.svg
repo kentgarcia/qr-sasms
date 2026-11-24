@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5a0d0d"/>
+      <stop offset="48%" stop-color="#8B1A1A"/>
+      <stop offset="100%" stop-color="#2c0505"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="72%" cy="22%" r="42%">
+      <stop offset="0%" stop-color="#F5C518" stop-opacity="0.45"/>
+      <stop offset="55%" stop-color="#D4A017" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#8B1A1A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="facade" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f7efe4" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#f7efe4" stop-opacity="0.08"/>
+    </linearGradient>
+    <linearGradient id="goldBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F5C518" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#D4A017" stop-opacity="0.3"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#sky)"/>
+  <rect width="1200" height="1600" fill="url(#sun)"/>
+  <!-- Architectural silhouette of PUP San Pedro Campus facade -->
+  <g opacity="0.9">
+    <!-- Campus roofline & main academic building -->
+    <polygon points="100,660 600,510 1100,660 1100,700 100,700" fill="#F5C518" fill-opacity="0.22"/>
+    <rect x="140" y="700" width="920" height="520" fill="url(#facade)" stroke="#F5C518" stroke-opacity="0.24" stroke-width="2"/>
+    <!-- Classical campus columns -->
+    <g fill="#fff6eb" fill-opacity="0.16">
+      <rect x="200" y="720" width="36" height="480" rx="4"/>
+      <rect x="330" y="720" width="36" height="480" rx="4"/>
+      <rect x="460" y="720" width="36" height="480" rx="4"/>
+      <rect x="704" y="720" width="36" height="480" rx="4"/>
+      <rect x="834" y="720" width="36" height="480" rx="4"/>
+      <rect x="964" y="720" width="36" height="480" rx="4"/>
+    </g>
+    <!-- Central entrance arch -->
+    <path d="M525 1220 L525 900 A75 75 0 0 1 675 900 L675 1220 Z" fill="#1a0505" fill-opacity="0.45" stroke="#F5C518" stroke-opacity="0.4" stroke-width="3"/>
+    <!-- Upper windows -->
+    <g fill="#F5C518" fill-opacity="0.2">
+      <rect x="255" y="770" width="56" height="90" rx="6"/>
+      <rect x="385" y="770" width="56" height="90" rx="6"/>
+      <rect x="759" y="770" width="56" height="90" rx="6"/>
+      <rect x="889" y="770" width="56" height="90" rx="6"/>
+      <rect x="255" y="920" width="56" height="90" rx="6"/>
+      <rect x="385" y="920" width="56" height="90" rx="6"/>
+      <rect x="759" y="920" width="56" height="90" rx="6"/>
+      <rect x="889" y="920" width="56" height="90" rx="6"/>
+    </g>
+    <!-- Campus steps -->
+    <rect x="80" y="1220" width="1040" height="28" fill="#F5C518" fill-opacity="0.2"/>
+    <rect x="40" y="1248" width="1120" height="32" fill="#fff" fill-opacity="0.1"/>
+    <rect x="0" y="1280" width="1200" height="320" fill="#160303" fill-opacity="0.55"/>
+  </g>
+  <!-- Top brand emblem line -->
+  <rect x="96" y="120" width="220" height="5" rx="2.5" fill="url(#goldBar)"/>
+  <text x="96" y="185" fill="#F5C518" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="800" letter-spacing="6">POLYTECHNIC UNIVERSITY OF THE PHILIPPINES</text>
+  <text x="96" y="255" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="900" letter-spacing="2">SAN PEDRO CAMPUS</text>
+  <text x="96" y="305" fill="#FCE7B2" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="600" letter-spacing="3" opacity="0.88">STUDENT SERVICES OFFICE · STARS PORTAL</text>
+</svg>

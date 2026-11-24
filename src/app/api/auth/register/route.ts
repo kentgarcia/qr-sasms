@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, verifyPassword } from "@/lib/auth";
+import { validateStrongPassword } from "@/lib/password";
 import { addAudit, addNotification } from "@/lib/notify";
 import { normSN } from "@/lib/format";
 import { jsonError } from "@/lib/http";
@@ -13,19 +14,23 @@ export async function POST(req: NextRequest) {
   const first = (body?.first || "").toString().trim();
   const last = (body?.last || "").toString().trim();
   const sn = (body?.sn || "").toString().trim();
-  const email = (body?.email || "").toString().trim();
+  const email = (body?.email || "").toString().trim().toLowerCase();
   const password = (body?.password || "").toString();
+  const otp = (body?.otp || "").toString().trim();
   const course = (body?.course || "").toString();
   const year = (body?.year || "").toString();
 
   if (!first || !last || !sn || !email || !password) {
     return jsonError(400, "Please complete all fields before creating your account.", "MISSING_FIELDS");
   }
-  if (password.length < 6) {
-    return jsonError(400, "Password must be at least 6 characters.", "WEAK_PASSWORD");
-  }
-
   const normalizedSn = normSN(sn);
+  const pwdCheck = validateStrongPassword(password, { studentId: normalizedSn, email });
+  if (!pwdCheck.ok) {
+    return jsonError(400, pwdCheck.error || "Password is too weak.", "WEAK_PASSWORD");
+  }
+  if (!/^\d{6}$/.test(otp)) {
+    return jsonError(400, "Please enter the 6-digit verification code (OTP) sent to your email.", "INVALID_OTP");
+  }
 
   
   
@@ -67,6 +72,29 @@ export async function POST(req: NextRequest) {
   if (existingByEmail) {
     return jsonError(409, "That email is already registered. Please sign in instead.", "EMAIL_TAKEN");
   }
+
+  const otpRecord = await prisma.emailOtp.findFirst({
+    where: {
+      email: { equals: email, mode: "insensitive" },
+      sn: normalizedSn,
+      purpose: "REGISTER",
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!otpRecord) {
+    return jsonError(400, "Verification code has expired or was not requested. Please request a new OTP.", "INVALID_OTP");
+  }
+  if (otpRecord.attempts >= 5) {
+    return jsonError(429, "Too many incorrect OTP attempts. Please request a new verification code.", "OTP_LOCKED");
+  }
+  const otpValid = await verifyPassword(otp, otpRecord.codeHash);
+  if (!otpValid) {
+    await prisma.emailOtp.update({ where: { id: otpRecord.id }, data: { attempts: { increment: 1 } } });
+    return jsonError(400, "Incorrect 6-digit verification code. Please check your email and try again.", "INVALID_OTP");
+  }
+  await prisma.emailOtp.update({ where: { id: otpRecord.id }, data: { usedAt: new Date() } });
 
   const passwordHash = await hashPassword(password);
   const name = `${first} ${last}`;

@@ -19,6 +19,7 @@ import {
   serviceLabel,
   slotCapacity,
   serviceOfferedOn,
+  syncAppointmentFieldsToLinked,
   validAppointmentDate,
   withSlotLock,
   APPOINTMENT_SERVICES,
@@ -194,7 +195,7 @@ export async function POST(req: NextRequest) {
         const evt = await tx.eventRequest.findUnique({ where: { id: prereq.linkedId }, select: { organizationId: true } });
         organizationId = evt?.organizationId || null;
       }
-      return tx.queueEntry.create({
+      const entry = await tx.queueEntry.create({
         data: {
           code, studentId, name: studentName, time, dateLabel, served: false,
           serviceType: service, serviceRefId: prereq.linkedId, organizationId,
@@ -204,6 +205,15 @@ export async function POST(req: NextRequest) {
           bookedBy, purpose, copies, notes,
         },
       });
+      await syncAppointmentFieldsToLinked(tx, {
+        service,
+        linkedId: prereq.linkedId,
+        code,
+        dateLabel,
+        time,
+        slotStart,
+      });
+      return entry;
     });
 
     const label = serviceLabel(service);

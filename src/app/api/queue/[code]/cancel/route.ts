@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, jsonError } from "@/lib/http";
 import { addAudit, addNotification } from "@/lib/notify";
-import { PENDING_APPROVAL, PRE_VISIT_STATUSES, getScheduleSettings, normalizeStatus, parseSlotStart, serviceLabel } from "@/lib/appointments";
+import { PENDING_APPROVAL, PRE_VISIT_STATUSES, getScheduleSettings, normalizeStatus, parseSlotStart, serviceLabel, syncAppointmentFieldsToLinked } from "@/lib/appointments";
 
 async function cancelOwn(code: string, studentId: string, name: string, reason?: string) {
   const entry = await prisma.queueEntry.findFirst({ where: { code, studentId } });
@@ -15,7 +15,17 @@ async function cancelOwn(code: string, studentId: string, name: string, reason?:
   if (start && start.getTime() - Date.now() < settings.cutoffHours * 3600000) {
     return jsonError(409, `Appointments can only be cancelled at least ${settings.cutoffHours} hours before the scheduled time.`, "CUTOFF_PASSED");
   }
-  await prisma.queueEntry.update({ where: { code }, data: { status: "CANCELLED", cancelReason: reason || null } });
+  await prisma.$transaction(async (tx) => {
+    await tx.queueEntry.update({ where: { code }, data: { status: "CANCELLED", cancelReason: reason || null } });
+    await syncAppointmentFieldsToLinked(tx, {
+      service: entry.serviceType,
+      linkedId: entry.serviceRefId,
+      code,
+      dateLabel: entry.dateLabel,
+      time: entry.time,
+      clear: true,
+    });
+  });
   const discreet = entry.serviceType === "PSYCH";
   await addAudit("INFO", discreet ? `${code} cancelled by ${name}.` : `${code} (${serviceLabel(entry.serviceType)}) cancelled by ${name}.`);
   await addNotification("admin", "Appointment Cancelled", `${name} cancelled ${code}.`);

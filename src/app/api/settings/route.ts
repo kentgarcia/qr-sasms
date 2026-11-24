@@ -16,6 +16,8 @@ const DEFAULT_SETTINGS = {
   assistantHighScore: 6,
   assistantHighSimilarity: 0.6,
   assistantMediumSimilarity: 0.45,
+  loginSplashUrl: "/pup-san-pedro-campus.svg",
+  loginSplashCaption: "PUP San Pedro Campus — Student Services Office",
 };
 
 function readSettings(rows: { key: string; value: string }[]) {
@@ -35,6 +37,8 @@ function readSettings(rows: { key: string; value: string }[]) {
     assistantHighScore: num("assistant.highScore", DEFAULT_SETTINGS.assistantHighScore),
     assistantHighSimilarity: num("assistant.highSimilarity", DEFAULT_SETTINGS.assistantHighSimilarity),
     assistantMediumSimilarity: num("assistant.mediumSimilarity", DEFAULT_SETTINGS.assistantMediumSimilarity),
+    loginSplashUrl: (values.loginSplashUrl || "").trim() || DEFAULT_SETTINGS.loginSplashUrl,
+    loginSplashCaption: (values.loginSplashCaption || "").trim() || DEFAULT_SETTINGS.loginSplashCaption,
   };
 }
 
@@ -103,6 +107,11 @@ export async function PUT(req: NextRequest) {
       }
     }
   }
+  const loginSplashUrl = body?.loginSplashUrl == null ? null : String(body.loginSplashUrl).trim().slice(0, 500);
+  const loginSplashCaption = body?.loginSplashCaption == null ? null : String(body.loginSplashCaption).trim().slice(0, 160);
+  if (loginSplashUrl && !/^(\/[a-zA-Z0-9._\-\/]+|https?:\/\/\S+)$/.test(loginSplashUrl)) {
+    return jsonError(400, "Invalid login splash image URL.", "INVALID_SETTINGS");
+  }
   await prisma.$transaction([
     prisma.systemSetting.upsert({ where: { key: "businessHours" }, update: { value: JSON.stringify(hours) }, create: { key: "businessHours", value: JSON.stringify(hours) } }),
     prisma.systemSetting.upsert({ where: { key: "appointmentCapacity" }, update: { value: String(capacity) }, create: { key: "appointmentCapacity", value: String(capacity) } }),
@@ -111,6 +120,8 @@ export async function PUT(req: NextRequest) {
     prisma.systemSetting.upsert({ where: { key: "holidays" }, update: { value: JSON.stringify(holidays) }, create: { key: "holidays", value: JSON.stringify(holidays) } }),
     prisma.systemSetting.upsert({ where: { key: "courses" }, update: { value: JSON.stringify(courses) }, create: { key: "courses", value: JSON.stringify(courses) } }),
     prisma.systemSetting.upsert({ where: { key: "emailTemplate" }, update: { value: emailTemplate }, create: { key: "emailTemplate", value: emailTemplate } }),
+    ...(loginSplashUrl == null ? [] : [prisma.systemSetting.upsert({ where: { key: "loginSplashUrl" }, update: { value: loginSplashUrl || DEFAULT_SETTINGS.loginSplashUrl }, create: { key: "loginSplashUrl", value: loginSplashUrl || DEFAULT_SETTINGS.loginSplashUrl } })]),
+    ...(loginSplashCaption == null ? [] : [prisma.systemSetting.upsert({ where: { key: "loginSplashCaption" }, update: { value: loginSplashCaption || DEFAULT_SETTINGS.loginSplashCaption }, create: { key: "loginSplashCaption", value: loginSplashCaption || DEFAULT_SETTINGS.loginSplashCaption } })]),
     ...(assistantHighScore == null ? [] : [prisma.systemSetting.upsert({ where: { key: "assistant.highScore" }, update: { value: String(assistantHighScore) }, create: { key: "assistant.highScore", value: String(assistantHighScore) } })]),
     ...(assistantHighSimilarity == null ? [] : [prisma.systemSetting.upsert({ where: { key: "assistant.highSimilarity" }, update: { value: String(assistantHighSimilarity) }, create: { key: "assistant.highSimilarity", value: String(assistantHighSimilarity) } })]),
     ...(assistantMediumSimilarity == null ? [] : [prisma.systemSetting.upsert({ where: { key: "assistant.mediumSimilarity" }, update: { value: String(assistantMediumSimilarity) }, create: { key: "assistant.mediumSimilarity", value: String(assistantMediumSimilarity) } })]),

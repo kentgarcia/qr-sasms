@@ -1,4 +1,4 @@
-﻿
+
 <div class="bg-scene"></div>
 <a href="#mainNav" class="skip-link">Skip to navigation</a>
 <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div><div class="orb orb-4"></div><div class="orb orb-5"></div><div class="orb orb-6"></div>
@@ -34,7 +34,11 @@
 </div>
 <div id="page-login" class="page auth-page active" style="align-items:center;justify-content:flex-start;min-height:100vh;padding:24px;position:relative;overflow:hidden;">
   
-  <div class="auth-visual" aria-hidden="true"><img src="/pup-seal.jpg" alt=""></div>
+  <div class="auth-visual" aria-hidden="true">
+    <img class="auth-splash-img" src="/pup-san-pedro-campus.svg" alt="PUP San Pedro Campus" onerror="this.src='/pup-san-pedro-campus.svg'">
+    <div class="auth-visual-scrim"></div>
+    <div class="auth-visual-badge"><i class="fa-solid fa-building-columns" style="margin-right:7px;color:#F5C518;"></i><span class="auth-splash-caption">PUP San Pedro Campus — Student Services Office</span></div>
+  </div>
   <div class="auth-panel">
     <div class="modal-box">
       <div style="text-align:center;margin-bottom:28px;">
@@ -84,7 +88,12 @@
   </div>
 </div>
 
-<div id="page-register" class="page auth-page" style="align-items:center;justify-content:flex-start;min-height:100vh;padding:24px;">
+<div id="page-register" class="page auth-page" style="align-items:center;justify-content:flex-start;min-height:100vh;padding:24px;position:relative;overflow:hidden;">
+  <div class="auth-visual" aria-hidden="true">
+    <img class="auth-splash-img" src="/pup-san-pedro-campus.svg" alt="PUP San Pedro Campus" onerror="this.src='/pup-san-pedro-campus.svg'">
+    <div class="auth-visual-scrim"></div>
+    <div class="auth-visual-badge"><i class="fa-solid fa-building-columns" style="margin-right:7px;color:#F5C518;"></i><span class="auth-splash-caption">PUP San Pedro Campus — Student Services Office</span></div>
+  </div>
   <div class="auth-panel">
     <div class="modal-box" style="max-width:480px;">
       <div style="text-align:center;margin-bottom:22px;">
@@ -105,15 +114,37 @@
           <div><span class="input-label">Course</span><select id="regCourse" class="glass-input"><option>Loading available courses…</option></select></div>
           <div><span class="input-label">Year</span><select id="regYear" class="glass-input"><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option></select></div>
         </div>
-        <div><span class="input-label">PUP Email Address</span><input id="regEmail" type="email" class="glass-input" placeholder="name@iskolar.pup.edu.ph"/></div>
+        <div>
+          <span class="input-label">Email Address (Gmail or PUP Email)</span>
+          <div style="display:flex;gap:8px;align-items:stretch;">
+            <input id="regEmail" type="email" class="glass-input" style="flex:1;" placeholder="name@gmail.com or name@iskolar.pup.edu.ph"/>
+            <button id="regSendOtpBtn" type="button" onclick="sendRegisterOtp()" class="btn-maroon" style="padding:0 14px;font-size:11px;white-space:nowrap;border-radius:12px;"><i class="fa-solid fa-paper-plane" style="margin-right:5px;"></i>Send OTP</button>
+          </div>
+          <div id="regOtpStatus" style="font-size:11px;color:rgba(30,5,5,.7);margin-top:5px;">We&#39;ll send a 6-digit verification code to verify your email.</div>
+        </div>
+        <div>
+          <span class="input-label">Email Verification Code (6-digit OTP)</span>
+          <input id="regOtp" type="text" inputmode="numeric" maxlength="6" class="glass-input" placeholder="Enter 6-digit OTP from your email" style="letter-spacing:.22em;font-weight:800;"/>
+        </div>
         <div>
           <span class="input-label">Password</span>
           <div style="position:relative;">
-            <input id="regPass" type="password" class="glass-input" placeholder="Create a strong password" oninput="checkStrength(this.value)" style="padding-right:42px;"/>
-            <button onclick="togglePass('regPass',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(30,5,5,.62);cursor:pointer;font-size:13px;" aria-label="Toggle"><i class="fa-solid fa-eye"></i></button>
+            <input id="regPass" type="password" class="glass-input" placeholder="More than 8 chars + upper, lower, number &amp; symbol" oninput="checkStrength(this.value)" style="padding-right:42px;"/>
+            <button type="button" onclick="togglePass('regPass',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(30,5,5,.62);cursor:pointer;font-size:13px;" aria-label="Toggle"><i class="fa-solid fa-eye"></i></button>
           </div>
           <div style="display:flex;gap:4px;margin-top:8px;"><div id="s1" class="strength-bar"></div><div id="s2" class="strength-bar"></div><div id="s3" class="strength-bar"></div><div id="s4" class="strength-bar"></div></div>
           <div id="strengthLabel" style="font-size:11px;color:rgba(30,5,5,.62);margin-top:4px;">Password strength</div>
+          <div id="pwdChecklist" style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:6px;font-size:11px;color:rgba(30,5,5,.65);">
+            <span id="chkLen"><i class="fa-regular fa-circle" style="margin-right:4px;"></i>More than 8 chars (9+)</span>
+            <span id="chkUp"><i class="fa-regular fa-circle" style="margin-right:4px;"></i>Uppercase (A-Z)</span>
+            <span id="chkLow"><i class="fa-regular fa-circle" style="margin-right:4px;"></i>Lowercase (a-z)</span>
+            <span id="chkNum"><i class="fa-regular fa-circle" style="margin-right:4px;"></i>Number (0-9)</span>
+            <span id="chkSpec" style="grid-column:1/-1;"><i class="fa-regular fa-circle" style="margin-right:4px;"></i>Special character (!@#$%^&amp;*)</span>
+          </div>
+        </div>
+        <div>
+          <span class="input-label">Confirm Password</span>
+          <input id="regPassConfirm" type="password" class="glass-input" placeholder="Re-enter your strong password"/>
         </div>
         <div id="regError" style="display:none;font-size:12px;font-weight:600;color:#b91c1c;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:9px 12px;line-height:1.4;"></div>
         <button id="registerSubmitBtn" onclick="handleRegister()" class="btn-gold" style="width:100%;padding:13px;margin-top:6px;"><i class="fa-solid fa-user-plus" style="margin-right:8px;"></i>CREATE ACCOUNT</button>
@@ -140,10 +171,26 @@
     </div>
     
     <div class="grid-4" style="margin-bottom:20px;" id="studentKPI">
-      <div class="stat-card ac-maroon"><div class="input-label" style="margin-bottom:0;">My Visits</div><div id="kpiTotal" style="font-size:42px;font-weight:900;color:#1a0505;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Booked all time</div></div>
-      <div class="stat-card ac-gold"><div class="input-label" style="margin-bottom:0;">Upcoming</div><div id="kpiPending" style="font-size:42px;font-weight:900;color:#F5C518;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Visits ahead</div></div>
-      <div class="stat-card ac-green"><div class="input-label" style="margin-bottom:0;">Served</div><div id="kpiReady" style="font-size:42px;font-weight:900;color:#166534;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Completed visits</div></div>
-      <div class="stat-card ac-blue"><div class="input-label" style="margin-bottom:0;">Next Appointment</div><div style="font-size:20px;font-weight:900;color:#1d4ed8;margin:6px 0 2px;line-height:1.2;">June 25</div><div style="font-size:11px;color:rgba(30,5,5,.75);">APT-007 &middot; 9:30 AM</div></div>
+      <button type="button" class="stat-card stat-card-btn ac-maroon" onclick="openDashboardShortcut('all')">
+        <div class="stat-card-top"><div class="input-label" style="margin-bottom:0;">My Visits</div><i class="fa-solid fa-arrow-right stat-card-arrow" aria-hidden="true"></i></div>
+        <div id="kpiTotal" style="font-size:42px;font-weight:900;color:#1a0505;margin:6px 0 2px;line-height:1;">0</div>
+        <div style="font-size:11px;color:rgba(30,5,5,.75);">View all transactions</div>
+      </button>
+      <button type="button" class="stat-card stat-card-btn ac-gold" onclick="openDashboardShortcut('upcoming')">
+        <div class="stat-card-top"><div class="input-label" style="margin-bottom:0;">Upcoming</div><i class="fa-solid fa-arrow-right stat-card-arrow" aria-hidden="true"></i></div>
+        <div id="kpiPending" style="font-size:42px;font-weight:900;color:#F5C518;margin:6px 0 2px;line-height:1;">0</div>
+        <div style="font-size:11px;color:rgba(30,5,5,.75);">Visits &amp; pickups ahead</div>
+      </button>
+      <button type="button" class="stat-card stat-card-btn ac-green" onclick="openDashboardShortcut('completed')">
+        <div class="stat-card-top"><div class="input-label" style="margin-bottom:0;">Served</div><i class="fa-solid fa-arrow-right stat-card-arrow" aria-hidden="true"></i></div>
+        <div id="kpiReady" style="font-size:42px;font-weight:900;color:#166534;margin:6px 0 2px;line-height:1;">0</div>
+        <div style="font-size:11px;color:rgba(30,5,5,.75);">Completed visits</div>
+      </button>
+      <button type="button" class="stat-card stat-card-btn ac-blue" onclick="openDashboardShortcut('next')">
+        <div class="stat-card-top"><div class="input-label" style="margin-bottom:0;">Next Appointment</div><i class="fa-solid fa-arrow-right stat-card-arrow" aria-hidden="true"></i></div>
+        <div id="kpiNextDate" style="font-size:20px;font-weight:900;color:#1d4ed8;margin:6px 0 2px;line-height:1.2;">None</div>
+        <div id="kpiNextMeta" style="font-size:11px;color:rgba(30,5,5,.75);">Book a visit</div>
+      </button>
     </div>
     <div class="layout-ms">
       
@@ -269,10 +316,26 @@
     </div>
     
     <div class="grid-4" style="margin-bottom:20px;">
-      <div class="stat-card ac-maroon"><div class="input-label" style="margin-bottom:0;">Total Visits</div><div id="adminKpiTotal" style="font-size:40px;font-weight:900;color:#1a0505;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">All students</div></div>
-      <div class="stat-card ac-gold"><div class="input-label" style="margin-bottom:0;">Active</div><div id="adminKpiPending" style="font-size:40px;font-weight:900;color:#F5C518;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">Needs attention</div></div>
-      <div class="stat-card ac-green"><div class="input-label" style="margin-bottom:0;">Served</div><div id="adminKpiApproved" style="font-size:40px;font-weight:900;color:#166534;margin:6px 0 2px;line-height:1;">0</div><div id="adminKpiClearance" style="font-size:11px;color:rgba(30,5,5,.75);">clearance rate</div></div>
-      <div class="stat-card ac-red"><div class="input-label" style="margin-bottom:0;">Cancelled / No-show</div><div id="adminKpiRejected" style="font-size:40px;font-weight:900;color:#991b1b;margin:6px 0 2px;line-height:1;">0</div><div style="font-size:11px;color:rgba(30,5,5,.75);">rejection rate</div></div>
+      <button type="button" class="stat-card stat-card-btn ac-maroon" onclick="openAdminDashboardShortcut('')">
+        <div class="stat-card-top"><div class="input-label" style="margin-bottom:0;">Total Visits</div><i class="fa-solid fa-arrow-right stat-card-arrow" aria-hidden="true"></i></div>
+        <div id="adminKpiTotal" style="font-size:40px;font-weight:900;color:#1a0505;margin:6px 0 2px;line-height:1;">0</div>
+        <div style="font-size:11px;color:rgba(30,5,5,.75);">View all appointments</div>
+      </button>
+      <button type="button" class="stat-card stat-card-btn ac-gold" onclick="openAdminDashboardShortcut('PENDING_APPROVAL')">
+        <div class="stat-card-top"><div class="input-label" style="margin-bottom:0;">Active</div><i class="fa-solid fa-arrow-right stat-card-arrow" aria-hidden="true"></i></div>
+        <div id="adminKpiPending" style="font-size:40px;font-weight:900;color:#F5C518;margin:6px 0 2px;line-height:1;">0</div>
+        <div style="font-size:11px;color:rgba(30,5,5,.75);">Needs attention</div>
+      </button>
+      <button type="button" class="stat-card stat-card-btn ac-green" onclick="openAdminDashboardShortcut('SERVED')">
+        <div class="stat-card-top"><div class="input-label" style="margin-bottom:0;">Served</div><i class="fa-solid fa-arrow-right stat-card-arrow" aria-hidden="true"></i></div>
+        <div id="adminKpiApproved" style="font-size:40px;font-weight:900;color:#166534;margin:6px 0 2px;line-height:1;">0</div>
+        <div id="adminKpiClearance" style="font-size:11px;color:rgba(30,5,5,.75);">clearance rate</div>
+      </button>
+      <button type="button" class="stat-card stat-card-btn ac-red" onclick="openAdminDashboardShortcut('CANCELLED')">
+        <div class="stat-card-top"><div class="input-label" style="margin-bottom:0;">Cancelled / No-show</div><i class="fa-solid fa-arrow-right stat-card-arrow" aria-hidden="true"></i></div>
+        <div id="adminKpiRejected" style="font-size:40px;font-weight:900;color:#991b1b;margin:6px 0 2px;line-height:1;">0</div>
+        <div id="adminKpiRejection" style="font-size:11px;color:rgba(30,5,5,.75);">rejection rate</div>
+      </button>
     </div>
     <div id="adminActivity" class="glass-card" style="padding:14px 18px;margin-bottom:20px;display:none;"></div>
     
@@ -594,6 +657,15 @@
         <p style="font-size:12px;color:rgba(30,5,5,.6);">Common questions organized by category.</p>
       </div>
     </div>
+    <div id="adminChatbotTrainer" class="glass-card" style="display:none;padding:18px;margin-bottom:16px;">
+      <div style="font-size:14px;font-weight:800;color:#1a0505;margin-bottom:4px;"><i class="fa-solid fa-robot" style="color:#8B1A1A;margin-right:7px;"></i>AI Chatbot Training Playground</div>
+      <div style="font-size:11px;color:rgba(30,5,5,.62);margin-bottom:10px;">Test how the assistant resolves English, Tagalog, or typo queries across rules, FAQs, and embeddings.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input id="simChatInput" class="glass-input" style="flex:1;min-width:220px;" placeholder="e.g. paano makakuha ng qr pass offline? / how to register with gmail otp?" onkeydown="if(event.key==='Enter')runChatbotSimulation()">
+        <button type="button" onclick="runChatbotSimulation()" class="btn-maroon" style="padding:9px 16px;font-size:12px;"><i class="fa-solid fa-play" style="margin-right:5px;"></i>Test Query</button>
+      </div>
+      <div id="simChatOutput" style="display:none;margin-top:12px;"></div>
+    </div>
     <div id="faqBody"></div>
   </div>
 </div>
@@ -708,8 +780,33 @@
         <div style="width:32px;height:32px;flex-shrink:0;"><img src="/pup-seal.jpg" alt="PUP Seal" style="width:32px;height:32px;border-radius:50%;object-fit:cover;object-position:center;display:block;filter:drop-shadow(0 1px 3px rgba(139,26,26,.25));"></div>
         <div style="font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(30,5,5,.62);">PUP San Pedro &middot; Student Services Office</div>
       </div>
-      <div class="page-title">Service Desk</div>
-      <div class="page-sub">Check in and serve today\'s appointments.</div>
+      <div class="page-title">Service Desk &amp; QR Scanner</div>
+      <div class="page-sub">Scan student appointment QR passes or check in and serve today&#39;s appointments.</div>
+    </div>
+
+    <div class="glass-card" style="padding:20px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-qrcode" style="color:#8B1A1A;margin-right:7px;"></i>Appointment QR Scanner</div>
+          <div style="font-size:11px;color:rgba(30,5,5,.6);">Works with offline saved or printed QR passes when links cannot be accessed.</div>
+        </div>
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#1a0505;cursor:pointer;">
+          <input id="scannerAutoCheckIn" type="checkbox" style="accent-color:#8B1A1A;"> Auto check-in on scan
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <button id="btnStartQrScan" type="button" onclick="startQrScanner()" class="btn-maroon" style="padding:9px 16px;font-size:12px;"><i class="fa-solid fa-camera" style="margin-right:6px;"></i>Start Camera</button>
+        <button id="btnStopQrScan" type="button" onclick="stopQrScanner()" class="btn-ghost" style="padding:9px 14px;font-size:12px;display:none;"><i class="fa-solid fa-stop" style="margin-right:6px;"></i>Stop</button>
+        <button id="btnSwitchQrCam" type="button" onclick="switchQrCamera()" class="btn-ghost" style="padding:9px 14px;font-size:12px;display:none;"><i class="fa-solid fa-camera-rotate" style="margin-right:6px;"></i>Flip Camera</button>
+      </div>
+      <div id="scannerReaderWrap" style="display:none;margin-bottom:12px;border-radius:12px;overflow:hidden;border:1px solid rgba(139,26,26,.2);background:#120404;">
+        <div id="scannerReader" style="width:100%;"></div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input id="scannerCodeInput" class="glass-input" style="flex:1;min-width:190px;" placeholder="Paste QR payload or enter code (e.g. APT-007)" onkeydown="if(event.key==='Enter')submitManualQrScan()">
+        <button type="button" onclick="submitManualQrScan()" class="btn-gold" style="padding:10px 18px;font-size:12px;"><i class="fa-solid fa-magnifying-glass" style="margin-right:6px;"></i>Verify Code</button>
+      </div>
+      <div id="scannerResultCard" style="display:none;margin-top:12px;"></div>
     </div>
 
     <div class="glass-card" style="padding:20px;margin-bottom:16px;">

@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const params = req.nextUrl.searchParams;
   const dateLabel = params.get("date") ||
-    new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    new Date().toLocaleDateString("en-US", { timeZone: "Asia/Manila", month: "long", day: "numeric", year: "numeric" });
   const service = (params.get("service") || "").toUpperCase();
   const where: Record<string, unknown> = { dateLabel, status: { not: "CANCELLED" } };
   if (service) {

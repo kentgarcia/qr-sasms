@@ -34,10 +34,19 @@ export type SendMailResult =
   | { ok: false; mode: "NO_EMAIL"; error: string };
 
 
+export type MailAttachment = {
+  filename: string;
+  content: Buffer;
+  cid?: string;
+  contentType?: string;
+};
+
 export async function sendMail(opts: {
   to: string | null | undefined;
   subject: string;
   text: string;
+  html?: string;
+  attachments?: MailAttachment[];
 }): Promise<SendMailResult | { ok: true; mode: "SIMULATED" }> {
   if (!opts.to) {
     return { ok: false, mode: "NO_EMAIL", error: "No email address on file." };
@@ -53,6 +62,8 @@ export async function sendMail(opts: {
       to: opts.to,
       subject: opts.subject,
       text: opts.text,
+      ...(opts.html ? { html: opts.html } : {}),
+      ...(opts.attachments?.length ? { attachments: opts.attachments } : {}),
     });
     return { ok: true, mode: "SENT" };
   } catch (err: unknown) {

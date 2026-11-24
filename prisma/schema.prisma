@@ -480,3 +480,18 @@ model ReminderLog {
   reminderKey String   @unique
   createdAt   DateTime @default(now())
 }
+
+
+model EmailOtp {
+  id        String    @id @default(uuid())
+  email     String
+  sn        String
+  purpose   String    @default("REGISTER")
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email, purpose, createdAt])
+}

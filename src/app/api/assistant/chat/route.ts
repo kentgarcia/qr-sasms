@@ -436,30 +436,44 @@ async function enhancePills(
   return out.slice(0, MAX_PILLS);
 }
 
-const APPOINTMENT_PILL_INTENTS = new Set(["book_appointment", "reschedule_appointment", "cancel_appointment"]);
+const APPOINTMENT_PILL_INTENTS = new Set([
+  "book_appointment",
+  "reschedule_appointment",
+  "cancel_appointment",
+  "appointment_qr",
+  "appointment_noshow",
+]);
 
 async function withVisitPills(
   pills: AssistantPill[],
   sn: string | null,
   items: StatusItem[]
 ): Promise<AssistantPill[]> {
-  let hasVisit = items.some((i) => i.kind === "appointment");
-  if (!hasVisit && sn) {
+  let activeCode: string | null =
+    items.find((i) => i.kind === "appointment" && !["CANCELLED", "NO_SHOW", "Cancelled", "No Show"].includes(i.status))?.ref ||
+    null;
+  let canReschedule = false;
+  if (sn) {
     const row = await prisma.queueEntry.findFirst({
       where: { studentId: sn, status: { in: ACTIVE_APPOINTMENT } },
-      select: { code: true },
+      orderBy: { createdAt: "desc" },
+      select: { code: true, status: true },
     });
-    hasVisit = !!row;
+    if (row) {
+      activeCode = activeCode || row.code;
+      canReschedule = ["BOOKED", "RESCHEDULED"].includes(row.status);
+    }
   }
-  const ask = (label: string, prompt: string): AssistantPill => ({ label, action: { type: "ask", prompt } });
-  if (hasVisit) {
-    const lead = [
-      ask("Reschedule my booking", "How do I reschedule my appointment?"),
-      ask("Cancel my booking", "How do I cancel my appointment?"),
+  if (activeCode) {
+    const lead: AssistantPill[] = [
+      { label: `Show QR Pass (${activeCode})`, action: { type: "view_qr", code: activeCode } },
+      ...(canReschedule
+        ? [{ label: `Reschedule ${activeCode}`, action: { type: "reschedule" as const, code: activeCode } }]
+        : []),
     ];
     return [...lead, ...pills.filter((p) => !lead.some((x) => x.label === p.label))].slice(0, MAX_PILLS);
   }
-  const book: AssistantPill = { label: "Book an appointment", action: { type: "navigate", target: "page-appointment-book" } };
+  const book: AssistantPill = { label: "Book Appointment", action: { type: "navigate", target: "page-appointment-book" } };
   const rest = pills.filter(
     (p) => !(p.action.type === "navigate" && p.action.target === "page-appointment-book")
   );
@@ -620,9 +634,15 @@ function pillsForReply(
   // needs its ticket pills explicitly (the low-confidence branch below
   // doesn't apply).
   if (result.ruleId === "confidential-redirect") return TICKET_PILLS.slice(0, MAX_PILLS);
-  // Escalation (low fallback, billing, not-found): prefilled create pill.
+  // Escalation (low fallback, billing, not-found): prefilled create pill + helpful recovery actions.
   if (result.ticketDraft && result.confidence === "low" && !result.faqId && !result.dataSource) {
-    return [{ label: "Create a new ticket", action: { type: "ticket", prefill: result.ticketDraft } }];
+    const recovery: AssistantPill[] = [
+      { label: "Create Support Ticket", action: { type: "ticket", prefill: result.ticketDraft } },
+      { label: "Check My Requests", action: { type: "ask", prompt: "What's the status of my appointments and requests?" } },
+      { label: "Book / Request", action: { type: "navigate", target: "page-appointment-book" } },
+      { label: "What can you do?", action: { type: "ask", prompt: "What can you do?" } },
+    ];
+    return recovery.slice(0, MAX_PILLS);
   }
   if (result.dataSource) {
     const data = pillsForData(result.items);

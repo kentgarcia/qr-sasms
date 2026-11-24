@@ -3,8 +3,11 @@
 
 
 
+export const APP_TIMEZONE = "Asia/Manila";
+
 export function fnow(d: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-PH", {
+    timeZone: APP_TIMEZONE,
     dateStyle: "medium",
     timeStyle: "short",
   }).format(d);
@@ -13,6 +16,7 @@ export function fnow(d: Date = new Date()): string {
 
 export function shortDate(d: Date = new Date()): string {
   return new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIMEZONE,
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -21,9 +25,15 @@ export function shortDate(d: Date = new Date()): string {
 
 
 export function dateSort(d: Date = new Date()): number {
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const y = parts.find((p) => p.type === "year")?.value || "1970";
+  const m = parts.find((p) => p.type === "month")?.value || "01";
+  const day = parts.find((p) => p.type === "day")?.value || "01";
   return parseInt(`${y}${m}${day}`, 10);
 }
 

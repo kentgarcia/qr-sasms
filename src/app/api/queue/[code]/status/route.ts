@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, jsonError } from "@/lib/http";
 import { addAudit, addNotification, notifyStudentByEmail } from "@/lib/notify";
-import { normalizeStatus, serializeAppointment, serviceLabel, PENDING_APPROVAL } from "@/lib/appointments";
+import { dateISOPHT, normalizeStatus, serializeAppointment, serviceLabel, PENDING_APPROVAL } from "@/lib/appointments";
 import { pushRequestHistory } from "@/lib/service-requests";
 import { fnow } from "@/lib/format";
 import type { Prisma as PrismaTypes } from "@prisma/client";
@@ -51,6 +51,14 @@ export async function POST(req: NextRequest, { params }: { params: { code: strin
         title: "Appointment Approved",
         message: `Your appointment ${code} (${serviceLabel(entry.serviceType)}) on ${entry.dateLabel} at ${entry.time} has been approved and confirmed. See you then!`,
         ref: code,
+        qrAppointment: {
+          code,
+          studentId: entry.studentId,
+          dateISO: entry.dateISO || dateISOPHT(entry.dateLabel),
+          dateLabel: entry.dateLabel,
+          time: entry.time,
+          serviceLabel: serviceLabel(entry.serviceType),
+        },
       });
       await addNotification(entry.studentId, "Appointment Approved", `Your appointment ${code} on ${entry.dateLabel} at ${entry.time} is confirmed.`);
       return NextResponse.json(serializeAppointment(updated));
@@ -117,25 +125,51 @@ type QueueRow = {
 async function propagateToLinked(entry: QueueRow, visitStatus: string, by: string) {
   if (!entry.serviceRefId) return;
   try {
-    if (entry.serviceType === "GENERAL") {
+    if (entry.serviceType === "GENERAL" || entry.serviceType === "AUTH" || entry.serviceType === "EXCUSE") {
       const linked = await prisma.serviceRequest.findUnique({ where: { id: entry.serviceRefId } });
       if (!linked) return;
+      const isPickup = entry.serviceType === "AUTH" || entry.serviceType === "EXCUSE";
       if (visitStatus === "Completed") {
         if (["Completed", "Cancelled", "No Show", "Rejected"].includes(linked.status)) return;
-        const history = pushRequestHistory(linked.history, { status: "Completed", by, note: `Visit ${entry.code} served` });
-        await prisma.serviceRequest.update({ where: { id: linked.id }, data: { status: "Completed", history } });
+        const history = pushRequestHistory(linked.history, {
+          status: "Completed",
+          by,
+          note: isPickup ? `Pickup ${entry.code} completed` : `Visit ${entry.code} served`,
+        });
+        await prisma.serviceRequest.update({
+          where: { id: linked.id },
+          data: { status: "Completed", ...(isPickup ? { pickedUpAt: new Date() } : {}), history },
+        });
         await notifyStudentByEmail({
           studentId: linked.sn,
           name: linked.name,
-          title: "General Visit — Completed",
-          message: `Your General Visit (${linked.id}, appointment ${entry.code}) has been completed. Thank you!`,
+          title: `${serviceLabel(entry.serviceType)} — Completed`,
+          message: `Your ${serviceLabel(entry.serviceType)} (${linked.id}, appointment ${entry.code}) has been completed. Thank you!`,
           ref: linked.id,
         });
-        await addNotification(linked.sn, "General Visit Completed", `Your General Visit (${linked.id}) is now: Completed.`);
+        await addNotification(linked.sn, `${serviceLabel(entry.serviceType)} Completed`, `Your ${serviceLabel(entry.serviceType)} (${linked.id}) is now: Completed.`);
+      } else if (visitStatus === "Approved" && !isPickup) {
+        const nextStatus = ["Pending Review", "Pending"].includes(linked.status) ? "Confirmed" : linked.status;
+        const history = pushRequestHistory(linked.history, { status: nextStatus, by, note: `Appointment ${entry.code}: Confirmed` });
+        await prisma.serviceRequest.update({
+          where: { id: linked.id },
+          data: { status: nextStatus, appointmentCode: entry.code, dateLabel: entry.dateLabel, time: entry.time, history },
+        });
+      } else if (visitStatus === "Checked In" && !isPickup) {
+        const history = pushRequestHistory(linked.history, { status: "Checked In", by, note: `Appointment ${entry.code}: Checked In` });
+        await prisma.serviceRequest.update({ where: { id: linked.id }, data: { status: "Checked In", history } });
       } else if (visitStatus === "No Show") {
         if (["Completed", "Cancelled", "No Show", "Rejected"].includes(linked.status)) return;
-        const history = pushRequestHistory(linked.history, { status: "No Show", by, note: `Missed appointment ${entry.code}` });
-        await prisma.serviceRequest.update({ where: { id: linked.id }, data: { status: "No Show", history } });
+        const nextStatus = isPickup ? "Ready for Pickup" : "No Show";
+        const history = pushRequestHistory(linked.history, { status: nextStatus, by, note: `Missed appointment ${entry.code}` });
+        await prisma.serviceRequest.update({ where: { id: linked.id }, data: { status: nextStatus, history } });
+      } else if (visitStatus === "Cancelled" || visitStatus === "Rejected") {
+        const nextStatus = isPickup ? "Ready for Pickup" : visitStatus;
+        const history = pushRequestHistory(linked.history, { status: nextStatus, by, note: `Appointment ${entry.code}: ${visitStatus}` });
+        await prisma.serviceRequest.update({
+          where: { id: linked.id },
+          data: { status: nextStatus, appointmentCode: null, history },
+        });
       } else {
         const history = pushRequestHistory(linked.history, { status: linked.status, by, note: `Appointment ${entry.code}: ${visitStatus}` });
         await prisma.serviceRequest.update({ where: { id: linked.id }, data: { history } });
@@ -147,7 +181,16 @@ async function propagateToLinked(entry: QueueRow, visitStatus: string, by: strin
       if (!linked) return;
       const history = Array.isArray(linked.history) ? ([...linked.history] as PrismaTypes.JsonArray) : [];
       history.push({ ts: fnow(), status: linked.status, by, note: `Appointment ${entry.code}: ${visitStatus}` });
-      await prisma.eventRequest.update({ where: { id: linked.id }, data: { history } });
+      const clearLink = visitStatus === "Cancelled" || visitStatus === "Rejected";
+      await prisma.eventRequest.update({
+        where: { id: linked.id },
+        data: {
+          history,
+          ...(clearLink
+            ? { appointmentCode: null, appointmentDate: "", appointmentTime: "" }
+            : { appointmentCode: entry.code, appointmentDate: entry.dateLabel, appointmentTime: entry.time }),
+        },
+      });
       return;
     }
     if (entry.serviceType === "PSYCH") {
@@ -155,12 +198,39 @@ async function propagateToLinked(entry: QueueRow, visitStatus: string, by: strin
       if (!linked) return;
       const history = Array.isArray(linked.history) ? ([...linked.history] as PrismaTypes.JsonArray) : [];
       history.push({ ts: fnow(), status: linked.status, by, note: `Appointment ${entry.code}: ${visitStatus}` });
-      await prisma.referral.update({ where: { id: linked.id }, data: { history } });
+      const clearLink = visitStatus === "Cancelled" || visitStatus === "Rejected";
+      await prisma.referral.update({
+        where: { id: linked.id },
+        data: {
+          history,
+          ...(clearLink
+            ? { appointmentCode: null, appointmentDate: "", appointmentTime: "" }
+            : { appointmentCode: entry.code, appointmentDate: entry.dateLabel, appointmentTime: entry.time }),
+        },
+      });
       return;
     }
     if (entry.serviceType === "ID_NEW" || entry.serviceType === "ID_LOST") {
       const linked = await prisma.idApplication.findUnique({ where: { id: entry.serviceRefId } });
       if (!linked) return;
+      if (visitStatus === "Completed") {
+        if (!["Claimed", "Completed", "Rejected", "Cancelled"].includes(linked.status)) {
+          const history = pushRequestHistory(linked.history, { status: "Claimed", by, note: `Pickup ${entry.code} completed` });
+          await prisma.idApplication.update({
+            where: { id: linked.id },
+            data: { status: "Claimed", pickedUpAt: new Date(), history },
+          });
+          await notifyStudentByEmail({
+            studentId: linked.sn,
+            name: linked.name,
+            title: "Student ID — Claimed",
+            message: `Your ${linked.type} application (${linked.id}) has been completed. Thank you!`,
+            ref: linked.id,
+          });
+          await addNotification(linked.sn, "ID Application Claimed", `Your ${linked.type} (${linked.id}) is now: Claimed.`);
+        }
+        return;
+      }
       const history = pushRequestHistory(linked.history, { status: linked.status, by, note: `Appointment ${entry.code}: ${visitStatus}` });
       await prisma.idApplication.update({ where: { id: linked.id }, data: { history } });
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
+import { validateStrongPassword } from "@/lib/password";
 import { addAudit } from "@/lib/notify";
 import { jsonError } from "@/lib/http";
 import crypto from "crypto";
@@ -17,8 +18,9 @@ export async function POST(req: NextRequest) {
     return jsonError(400, "This password reset link is invalid or has expired.", "INVALID_RESET_TOKEN");
   }
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-  if (password.length < 6) {
-    return jsonError(400, "Password must be at least 6 characters.", "WEAK_PASSWORD");
+  const pwdCheck = validateStrongPassword(password);
+  if (!pwdCheck.ok) {
+    return jsonError(400, pwdCheck.error || "Password is too weak.", "WEAK_PASSWORD");
   }
 
   const user = await prisma.user.findFirst({
