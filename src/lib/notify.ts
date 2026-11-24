@@ -3,6 +3,7 @@ import { prisma } from "./prisma";
 import { sendMail, type MailAttachment } from "./mailer";
 import { normSN } from "./format";
 import { buildAppointmentQrPayload } from "./signature";
+import { buildAppointmentIcs } from "./calendar";
 
 function escHtml(s: string): string {
   return String(s || "")
@@ -58,12 +59,25 @@ export async function notifyStudentByEmail(opts: {
         errorCorrectionLevel: "M",
         color: { dark: "#1a0505", light: "#ffffff" },
       });
+      const icsContent = buildAppointmentIcs({
+        code: qa.code,
+        serviceLabel: qa.serviceLabel,
+        dateLabel: qa.dateLabel,
+        time: qa.time,
+        studentName: opts.name,
+        studentId: qa.studentId,
+      });
       attachments = [
         {
           filename: `STARS-${qa.code}-QR.png`,
           content: pngBuffer,
           cid: "appointment-qr",
           contentType: "image/png",
+        },
+        {
+          filename: `STARS-${qa.code}.ics`,
+          content: Buffer.from(icsContent, "utf-8"),
+          contentType: "text/calendar; charset=utf-8; method=PUBLISH",
         },
       ];
       html = `

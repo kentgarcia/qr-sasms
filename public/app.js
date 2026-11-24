@@ -635,6 +635,9 @@ async function signOut() {
   if (liveEventSource) { liveEventSource.close(); liveEventSource = null; }
   session = null;
   myApptFilter = "all";
+  MY_FEEDBACK = {};
+  MY_FEEDBACK_LOADED = false;
+  if (BATCH_SEL) { Object.values(BATCH_SEL).forEach((s) => s.clear()); }
   try { sessionStorage.removeItem(LAST_ROUTE_KEY); } catch {}
   try { history.replaceState(null, "", "#page-login"); } catch {}
   await goTo("page-login");
@@ -772,7 +775,7 @@ async function renderStudentAppointment() {
   const visits = result.ok ? result.data : [];
   const appt = visits.filter(isApprovedVisit)[0];
   if (appt) {
-    card.innerHTML = `${head}<div style="background:rgba(139,26,26,.5);border:1px solid rgba(245,197,24,.25);border-radius:14px;padding:16px;text-align:center;"><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,197,24,.7);">Appointment Number</div><div style="font-size:32px;font-weight:900;color:#fff;line-height:1.2;">${esc(appt.q)}</div><div style="font-size:12px;color:#fff;margin-top:5px;">${esc(appt.dateLabel)} · ${esc(appt.time)}</div><div style="font-size:11px;color:#F5C518;margin-top:4px;">${esc(appt.serviceLabel || appt.service || "")}${appt.linkedId ? ` · ${esc(appt.linkedId)}` : ""} · ${esc((appt.displayStatus || appt.status || "").replace(/_/g, " "))}</div><div id="dashApptQrWrap" style="margin-top:12px;display:flex;justify-content:center;"><span style="font-size:10px;color:rgba(255,255,255,.75);">Loading QR pass…</span></div></div><button onclick="viewMyAppointment('${esc(appt.q)}')" class="btn-ghost" style="width:100%;margin-top:10px;padding:8px;font-size:11px;"><i class="fa-solid fa-qrcode" style="margin-right:5px;"></i>View QR Pass &amp; Details</button>`;
+    card.innerHTML = `${head}<div style="background:rgba(139,26,26,.5);border:1px solid rgba(245,197,24,.25);border-radius:14px;padding:16px;text-align:center;"><div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(245,197,24,.7);">Appointment Number</div><div style="font-size:32px;font-weight:900;color:#fff;line-height:1.2;">${esc(appt.q)}</div><div style="font-size:12px;color:#fff;margin-top:5px;">${esc(appt.dateLabel)} · ${esc(appt.time)}</div><div style="font-size:11px;color:#F5C518;margin-top:4px;">${esc(appt.serviceLabel || appt.service || "")}${appt.linkedId ? ` · ${esc(appt.linkedId)}` : ""} · ${esc((appt.displayStatus || appt.status || "").replace(/_/g, " "))}</div><div id="dashApptQrWrap" style="margin-top:12px;display:flex;justify-content:center;"><span style="font-size:10px;color:rgba(255,255,255,.75);">Loading QR pass…</span></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;"><button onclick="viewMyAppointment('${esc(appt.q)}')" class="btn-ghost" style="padding:8px;font-size:11px;"><i class="fa-solid fa-qrcode" style="margin-right:4px;"></i>QR &amp; Details</button><button onclick="downloadAppointmentIcs('${esc(appt.q)}')" class="btn-ghost" style="padding:8px;font-size:11px;"><i class="fa-solid fa-calendar-plus" style="margin-right:4px;"></i>Add to Calendar</button></div>`;
     void loadAppointmentQrInto(appt.q, "dashApptQrWrap", 132);
     return;
   }
@@ -792,12 +795,13 @@ async function renderMyAppointments() {
   const box = document.getElementById("myAppointmentsList");
   if (!box) return;
   box.innerHTML = `<div style="text-align:center;font-size:12px;color:rgba(30,5,5,.55);padding:24px;">Loading appointments…</div>`;
-  const [result, reqRes, refRes, idaRes, evtRes] = await Promise.all([
+  const [result, reqRes, refRes, idaRes, evtRes, fbRes] = await Promise.all([
     api("/api/queue?mine=1&history=1"),
     api("/api/modules/requests"),
     api("/api/modules/referrals"),
     api("/api/modules/idapps"),
     api("/api/modules/events2"),
+    api("/api/feedback"),
   ]);
   const list = result.ok ? result.data : [];
   MOD.visits = list;
@@ -805,6 +809,7 @@ async function renderMyAppointments() {
   if (refRes.ok) MOD.referrals = refRes.data;
   if (idaRes.ok) MOD.idapps = idaRes.data;
   if (evtRes.ok) MOD.events2 = evtRes.data;
+  if (fbRes.ok && Array.isArray(fbRes.data?.items)) setMyFeedbackList(fbRes.data.items);
   const sid = (session && session.id) || "";
   const myPickups = studentPickups();
   const awaiting = list.filter(isAwaitingVisit);
@@ -866,7 +871,7 @@ async function renderMyAppointments() {
       <td style="font-size:12px;">${esc(a.serviceLabel || a.service || "")}</td>
       <td><span style="font-family:monospace;font-size:11px;color:rgba(30,5,5,.68);">${a.linkedId ? esc(a.linkedId) : "—"}</span></td>
       <td>${apptStatusPill(a.status)}</td>
-      <td style="text-align:right;"><button onclick="viewMyAppointment('${esc(a.q)}')" class="btn-ghost" style="padding:6px 10px;font-size:11px;">View</button></td>
+      <td style="text-align:right;"><div style="display:inline-flex;gap:6px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">${a.status === "SERVED" ? csatActionHtml(a.q, a.serviceLabel || a.service || "SSO Visit") : ""}<button onclick="viewMyAppointment('${esc(a.q)}')" class="btn-ghost" style="padding:6px 10px;font-size:11px;">View</button></div></td>
     </tr>`;
   const table = (title, icon, count, rows) => `
     <div class="glass-card" style="padding:0;margin-bottom:16px;overflow:hidden;">
@@ -929,7 +934,16 @@ async function viewMyAppointment(code) {
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
           <button type="button" class="btn-gold" style="padding:7px 14px;font-size:12px;" onclick="downloadAppointmentQr('${esc(a.q)}')"><i class="fa-solid fa-download" style="margin-right:5px;"></i>Download PNG</button>
           <button type="button" class="btn-ghost" style="padding:7px 14px;font-size:12px;" onclick="printAppointmentQr('${esc(a.q)}')"><i class="fa-solid fa-print" style="margin-right:5px;"></i>Print Pass</button>
+          <button type="button" class="btn-soft" style="padding:7px 14px;font-size:12px;" onclick="downloadAppointmentIcs('${esc(a.q)}')"><i class="fa-solid fa-calendar-arrow-down" style="margin-right:5px;"></i>Download .ics</button>
+          <button type="button" class="btn-soft" style="padding:7px 14px;font-size:12px;" onclick="openGoogleCalendarForAppointment('${esc(a.q)}')"><i class="fa-brands fa-google" style="margin-right:5px;"></i>Google Calendar</button>
         </div>
+      </div>` : ""}
+      ${a.status === "SERVED" ? `<div class="glass-card" style="padding:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:12px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-star" style="color:#D4A017;margin-right:6px;"></i>Service Satisfaction Feedback</div>
+          <div style="font-size:11px;color:rgba(30,5,5,.62);">${MY_FEEDBACK[a.q] ? `You rated this visit ${MY_FEEDBACK[a.q].rating}/5${MY_FEEDBACK[a.q].comment ? ` — “${esc(MY_FEEDBACK[a.q].comment)}”` : ""}` : "Help PUP San Pedro SSO improve by rating your visit."}</div>
+        </div>
+        <div>${csatActionHtml(a.q, a.serviceLabel || a.service || "SSO Visit")}</div>
       </div>` : ""}
       ${apptStepperHtml(a)}
       <div class="app-modal-actions"><button class="btn-soft" onclick="closeAppModal()">Close</button></div>
@@ -1477,8 +1491,28 @@ function renderAdminApptPending() {
     .sort((a, b) => new Date(a.startsAt || 0) - new Date(b.startsAt || 0));
   if (!items.length || (adminApptStatus && adminApptStatus !== "PENDING_APPROVAL")) { wrap.style.display = "none"; return; }
   wrap.style.display = "";
+  const validCodes = new Set(items.map((a) => a.q));
+  for (const c of [...BATCH_SEL.pendingAppts]) { if (!validCodes.has(c)) BATCH_SEL.pendingAppts.delete(c); }
+  const selCount = BATCH_SEL.pendingAppts.size;
+  const allChk = document.getElementById("chkAllPendingAppts");
+  if (allChk) allChk.checked = items.length > 0 && selCount === items.length;
+  const batchBar = document.getElementById("adminApptPendingBatchBar");
+  if (batchBar) {
+    if (isAdmin() && items.length) {
+      batchBar.style.display = "flex";
+      batchBar.innerHTML = `<span><i class="fa-solid fa-list-check" style="margin-right:6px;color:#8B1A1A;"></i>${selCount ? `${selCount} selected` : `Select bookings for batch action (${items.length} pending)`}</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn-maroon" style="padding:6px 12px;font-size:11px;" ${selCount ? "" : "disabled"} onclick="batchPendingAppointments('approve')"><i class="fa-solid fa-check-double" style="margin-right:4px;"></i>Approve Selected (${selCount})</button>
+          <button type="button" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#b91c1c;" ${selCount ? "" : "disabled"} onclick="batchPendingAppointments('reject')"><i class="fa-solid fa-xmark" style="margin-right:4px;"></i>Reject Selected</button>
+          ${items.length > 1 ? `<button type="button" class="btn-gold" style="padding:6px 12px;font-size:11px;" onclick="batchPendingAppointments('approve', true)"><i class="fa-solid fa-bolt" style="margin-right:4px;"></i>Approve All (${items.length})</button>` : ""}
+        </div>`;
+    } else {
+      batchBar.style.display = "none";
+    }
+  }
   document.getElementById("adminApptPendingMeta").textContent = `${items.length} awaiting your approval — oldest first`;
   document.getElementById("adminApptPendingTable").innerHTML = items.map((a) => `<tr>
+    <td><input type="checkbox" class="batch-chk" data-batch="pendingAppts" value="${esc(a.q)}" ${BATCH_SEL.pendingAppts.has(a.q) ? "checked" : ""} onchange="toggleBatchItem('pendingAppts','${esc(a.q)}',this.checked)" aria-label="Select ${esc(a.q)}"></td>
     <td><div style="font-weight:700;font-size:13px;color:#1a0505;">${esc(a.q)}</div><div style="font-size:11px;color:rgba(30,5,5,.6);">${esc(a.serviceLabel || a.service || "")}${a.linkedId ? ` · ${esc(a.linkedId)}` : ""}</div></td>
     <td><div style="font-size:13px;font-weight:700;color:#1a0505;">${esc(a.name)}</div><div style="font-size:10px;font-family:monospace;color:rgba(30,5,5,.55);">${esc(a.studentId)}</div></td>
     <td style="font-size:12px;color:rgba(30,5,5,.68);">${esc(a.dateLabel)} · ${esc(a.time)}</td>
@@ -2500,7 +2534,23 @@ async function saveProfileEdit() {
 function printAnalyticsReport(data) {
   const rows = (items) => (items || []).map((x) => `<tr><td>${esc(x.label)}</td><td>${esc(x.count)}</td></tr>`).join("") || "<tr><td colspan='2'>No data</td></tr>";
   const section = (title, items) => `<h2>${esc(title)}</h2><table><thead><tr><th>Category</th><th>Count</th></tr></thead><tbody>${rows(items)}</tbody></table>`;
-  const html = `<!doctype html><html><head><title>STARS Analytics Report</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#1a0505}h1{color:#8B1A1A}h2{margin-top:24px;font-size:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:8px;text-align:left}th{background:#8B1A1A;color:#fff}.foot{font-size:10px;color:#666;margin-top:24px}@media print{body{padding:0}.noprint{display:none}}</style></head><body><h1>STARS Analytics Report</h1><p>PUP San Pedro Student Services Office</p>${section("Students by Course",data.byCourse)}${section("Students by Year Level",data.byYear)}${section("Appointments by Service",data.services)}${section("Peak Appointment Times",data.peakTimes)}<div class="foot">Generated ${esc(fnow())} · STARS</div><div class="noprint"><button onclick="window.print()">Print / Save as PDF</button></div><script>setTimeout(()=>window.print(),300);<\/script></body></html>`;
+  const rangeLabel = data?.range && (data.range.from || data.range.to)
+    ? `${data.range.from || "Beginning"} to ${data.range.to || "Present"}`
+    : "All Time";
+  const ops = data?.operations;
+  const csat = data?.csat;
+  const opsHtml = ops ? `<h2>Operational Performance</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>
+    <tr><td>Total Appointments</td><td>${esc(ops.totalAppointments)}</td></tr>
+    <tr><td>Completion Rate</td><td>${esc(ops.completionRate)}% (${esc(ops.servedCount)} served)</td></tr>
+    <tr><td>No-Show Rate</td><td>${esc(ops.noShowRate)}% (${esc(ops.noShowCount)} no-shows)</td></tr>
+    <tr><td>Cancellation Rate</td><td>${esc(ops.cancellationRate)}% (${esc(ops.cancelledCount)} cancelled)</td></tr>
+    <tr><td>Average Turnaround Time</td><td>${ops.avgTurnaroundHours != null ? `${esc(ops.avgTurnaroundHours)} hours (${esc(ops.completedRequestsCount)} completed)` : "N/A"}</td></tr>
+  </tbody></table>` : "";
+  const csatHtml = csat ? `<h2>Client Satisfaction (CSAT)</h2><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>
+    <tr><td>Average Rating</td><td>${csat.total ? `${esc(csat.average)} / 5.0 (${esc(csat.total)} responses)` : "No ratings yet"}</td></tr>
+    ${(csat.byService || []).map((s) => `<tr><td>${esc(s.label)}</td><td>${esc(s.average)} / 5.0 (${esc(s.count)})</td></tr>`).join("")}
+  </tbody></table>` : "";
+  const html = `<!doctype html><html><head><title>STARS Analytics Report</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#1a0505}h1{color:#8B1A1A;margin-bottom:4px}h2{margin-top:24px;font-size:16px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:8px;text-align:left}th{background:#8B1A1A;color:#fff}.foot{font-size:10px;color:#666;margin-top:24px}@media print{body{padding:0}.noprint{display:none}}</style></head><body><h1>STARS Analytics Report</h1><p>PUP San Pedro Student Services Office · Date Range: <b>${esc(rangeLabel)}</b></p>${opsHtml}${csatHtml}${section("Students by Course",data.byCourse)}${section("Students by Year Level",data.byYear)}${section("Appointments by Service",data.services)}${section("Peak Appointment Times",data.peakTimes)}<div class="foot">Generated ${esc(fnow())} · STARS</div><div class="noprint"><button onclick="window.print()">Print / Save as PDF</button></div><script>setTimeout(()=>window.print(),300);<\/script></body></html>`;
   const w = window.open("", "_blank"); if (!w) return showToast("Please allow pop-ups to save the PDF.", "rgba(180,130,0,.85)"); w.document.write(html); w.document.close();
 }
 
@@ -2751,25 +2801,40 @@ function renderIdApp() {
   const el = document.getElementById("idappBody");
   if (isAdmin()) {
     const list = [...MOD.idapps].reverse().filter((a) => matchQ(idaAdminQ, [a.name, a.sn, a.id, a.type, a.status]));
-    const rows = getModulePage("idapp-admin", list).items.map((a) => `<tr>
+    const eligible = list.filter((a) => ["Approved", "Processing", "Ready for Claiming"].includes(a.status));
+    const eligibleIds = new Set(eligible.map((a) => a.id));
+    for (const id of [...BATCH_SEL.idapps]) { if (!eligibleIds.has(id)) BATCH_SEL.idapps.delete(id); }
+    const selCount = BATCH_SEL.idapps.size;
+    const rows = getModulePage("idapp-admin", list).items.map((a) => {
+      const canBatch = eligibleIds.has(a.id);
+      return `<tr>
+        <td style="width:34px;">${canBatch ? `<input type="checkbox" class="batch-chk" data-batch="idapps" value="${esc(a.id)}" ${BATCH_SEL.idapps.has(a.id) ? "checked" : ""} onchange="toggleBatchItem('idapps','${esc(a.id)}',this.checked)" aria-label="Select ${esc(a.id)}">` : ""}</td>
         <td><div style="font-weight:700;font-size:12px;color:#1a0505;">${esc(a.type)}</div><div style="font-size:10px;font-family:monospace;color:rgba(30,5,5,.55);">${esc(a.id)}</div></td>
         <td><div style="font-size:12px;font-weight:700;color:#1a0505;">${esc(a.name)}</div><div style="font-size:10px;font-family:monospace;color:rgba(30,5,5,.55);">${esc(a.sn)}</div></td>
         <td>${pill(a.status)}</td>
         <td style="font-size:11px;white-space:nowrap;">${a.pickupDate ? `${esc(a.pickupDate)} ${esc(a.pickupTime)}` : "—"}</td>
         <td style="font-size:11px;white-space:nowrap;">${esc(a.ts)}</td>
         <td style="text-align:right;">${manageBtn(a.id, "openIdAppModal")}</td>
-      </tr>`).join("");
+      </tr>`;
+    }).join("");
+    const batchBar = eligible.length ? `<div class="batch-bar" style="border-radius:12px;margin-bottom:12px;border:1px solid rgba(212,160,23,.35);">
+      <span><i class="fa-solid fa-boxes-packing" style="margin-right:6px;color:#8B1A1A;"></i>${selCount ? `${selCount} ID application${selCount === 1 ? "" : "s"} selected` : `Select approved/ready ID applications to schedule pickups in batch (${eligible.length} eligible)`}</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button type="button" class="btn-gold" style="padding:6px 12px;font-size:11px;" ${selCount ? "" : "disabled"} onclick="openBatchPickupModal('idapps')"><i class="fa-solid fa-calendar-check" style="margin-right:5px;"></i>Batch Schedule Pickup (${selCount})</button>
+      </div>
+    </div>` : "";
     el.innerHTML = adminTableShell({
       icon: "fa-solid fa-id-card",
       title: "ID Applications",
       count: `${list.length} total`,
-      filtersHtml: adminSearchBox("idaAdminQBox", "idaAdminQ", "renderIdApp", "Search by name or student ID…", idaAdminQ),
-      theadHtml: "<th>Application</th><th>Student</th><th>Status</th><th>Pickup</th><th>Filed</th><th style=\"text-align:right;\">Action</th>",
+      filtersHtml: adminSearchBox("idaAdminQBox", "idaAdminQ", "renderIdApp", "Search by name or student ID…", idaAdminQ) + batchBar,
+      theadHtml: `<th style="width:34px;"><input type="checkbox" class="batch-chk" ${eligible.length && selCount === eligible.length ? "checked" : ""} onchange="toggleBatchSelectAll('idapps', this.checked)" aria-label="Select all eligible ID applications"></th><th>Application</th><th>Student</th><th>Status</th><th>Pickup</th><th>Filed</th><th style="text-align:right;">Action</th>`,
       rowsHtml: rows,
       emptyHtml: emptyState(idaAdminQ ? "No applications match your search." : "No ID applications yet."),
       paginationHtml: modulePagination("idapp-admin", list.length, "renderIdApp"),
     });
   } else {
+    void ensureMyFeedbackLoaded();
     const mine = MOD.idapps.filter((a) => a.sn === session.id).reverse();
     const minePage = getModulePage("idapp-student", mine);
     const editing = idaEditingId ? MOD.idapps.find((a) => a.id === idaEditingId) : null;
@@ -2802,8 +2867,9 @@ function renderIdApp() {
           <div style="margin-top:6px;display:flex;gap:12px;flex-wrap:wrap;">${a.orUrl ? fileLink(a.orName, a.orUrl, "My uploaded OR") : ""}${a.affidavitUrl ? fileLink(a.affidavitName, a.affidavitUrl, "My Affidavit of Loss") : ""}</div>
           ${a.remarks ? `<div style="font-size:11px;color:#8B1A1A;margin-top:6px;"><b>OSS remarks:</b> ${esc(a.remarks)}</div>` : ""}
           ${a.pickupDate ? `<div style="font-size:11px;color:#15803d;margin-top:6px;"><i class="fa-solid fa-box-open" style="margin-right:4px;"></i>Pickup: <b>${esc(a.pickupDate)} ${esc(a.pickupTime)}</b>${a.pickupNote ? ` — ${esc(a.pickupNote)}` : ""}</div>` : ""}
-          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             ${a.status === "Needs Revision" ? `<button onclick="idaEditingId='${esc(a.id)}';renderIdApp();window.scrollTo(0,0);" class="btn-maroon" style="padding:6px 10px;font-size:11px;">Revise</button>` : ""}
+            ${/^(claimed|completed)$/i.test(a.status || "") ? csatActionHtml(a.id, a.type || "ID Application") : ""}
           </div>
         </div>`).join("") : emptyState("No applications yet.")}
       ${modulePagination("idapp-student", mine.length, "renderIdApp")}
@@ -2943,6 +3009,12 @@ function renderServiceRequests() {
       ...reqList.map((r) => ({ kind: "req", item: r })),
       ...idaList.map((a) => ({ kind: "ida", item: a })),
     ];
+    const eligReqIds = new Set(reqList.filter((r) => r.service !== "GENERAL_VISIT" && ["Approved", "Ready for Pickup", "Pickup Scheduled"].includes(r.status)).map((r) => r.id));
+    const eligIdaIds = new Set(idaList.filter((a) => ["Approved", "Processing", "Ready for Claiming"].includes(a.status)).map((a) => a.id));
+    for (const id of [...BATCH_SEL.requests]) { if (!eligReqIds.has(id)) BATCH_SEL.requests.delete(id); }
+    for (const id of [...BATCH_SEL.idapps]) { if (!eligIdaIds.has(id)) BATCH_SEL.idapps.delete(id); }
+    const reqSelCount = BATCH_SEL.requests.size;
+    const idaSelCount = BATCH_SEL.idapps.size;
     const pageItems = getModulePage("req-admin", combined).items;
     const grouped = pageItems.some((i) => i.kind === "req") && pageItems.some((i) => i.kind === "ida");
     let lastKind = null;
@@ -2950,12 +3022,14 @@ function renderServiceRequests() {
       let head = "";
       if (grouped && it.kind !== lastKind) {
         lastKind = it.kind;
-        head = `<tr><td colspan="6" style="font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:rgba(139,26,26,.6);padding:10px 4px 2px;background:transparent;border:none;">${it.kind === "req" ? "Service Requests" : "ID Applications"}</td></tr>`;
+        head = `<tr><td colspan="7" style="font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:rgba(139,26,26,.6);padding:10px 4px 2px;background:transparent;border:none;">${it.kind === "req" ? "Service Requests" : "ID Applications"}</td></tr>`;
       }
       if (it.kind === "ida") {
         const a = it.item;
         const sub = a.pickupDate ? `Pickup: ${a.pickupDate} ${a.pickupTime}` : "—";
+        const canBatch = eligIdaIds.has(a.id);
         return `${head}<tr>
+          <td style="width:34px;">${canBatch ? `<input type="checkbox" class="batch-chk" data-batch="idapps" value="${esc(a.id)}" ${BATCH_SEL.idapps.has(a.id) ? "checked" : ""} onchange="toggleBatchItem('idapps','${esc(a.id)}',this.checked)" aria-label="Select ${esc(a.id)}">` : ""}</td>
           <td><div style="font-weight:700;font-size:12px;color:#1a0505;">${esc(a.type)}</div><div style="font-size:10px;font-family:monospace;color:rgba(30,5,5,.55);">${esc(a.id)} · ID Application</div></td>
           <td><div style="font-size:12px;font-weight:700;color:#1a0505;">${esc(a.name)}</div><div style="font-size:10px;font-family:monospace;color:rgba(30,5,5,.55);">${esc(a.sn)}</div></td>
           <td>${pill(a.status)}</td>
@@ -2966,7 +3040,9 @@ function renderServiceRequests() {
       }
       const r = it.item;
       const sub = r.pickupDate ? `Pickup: ${r.pickupDate} ${r.pickupTime}` : r.appointmentCode ? `Visit: ${r.appointmentCode}` : "—";
+      const canBatch = eligReqIds.has(r.id);
       return `${head}<tr>
+        <td style="width:34px;">${canBatch ? `<input type="checkbox" class="batch-chk" data-batch="requests" value="${esc(r.id)}" ${BATCH_SEL.requests.has(r.id) ? "checked" : ""} onchange="toggleBatchItem('requests','${esc(r.id)}',this.checked)" aria-label="Select ${esc(r.id)}">` : ""}</td>
         <td><div style="font-weight:700;font-size:12px;color:#1a0505;">${esc(r.subject || reqServiceLabel(r.service))}</div><div style="font-size:10px;font-family:monospace;color:rgba(30,5,5,.55);">${esc(r.id)} · ${esc(reqServiceLabel(r.service))}</div></td>
         <td><div style="font-size:12px;font-weight:700;color:#1a0505;">${esc(r.name)}</div><div style="font-size:10px;font-family:monospace;color:rgba(30,5,5,.55);">${esc(r.sn)}</div></td>
         <td>${pill(r.status)}</td>
@@ -2976,18 +3052,27 @@ function renderServiceRequests() {
       </tr>`;
     }).join("");
     const idaTypeOpts = [...new Set(["New ID", "ID Replacement — Lost", "ID Replacement — Damaged", ...((MOD.idapps || []).map((a) => a.type).filter(Boolean))])];
+    const batchBar = (eligReqIds.size || eligIdaIds.size) ? `<div class="batch-bar" style="border-radius:12px;margin-bottom:12px;border:1px solid rgba(212,160,23,.35);">
+      <span><i class="fa-solid fa-boxes-packing" style="margin-right:6px;color:#8B1A1A;"></i>Batch Pickup Scheduling: ${reqSelCount} request${reqSelCount === 1 ? "" : "s"}, ${idaSelCount} ID app${idaSelCount === 1 ? "" : "s"} selected</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${eligReqIds.size ? `<button type="button" class="btn-gold" style="padding:6px 12px;font-size:11px;" ${reqSelCount ? "" : "disabled"} onclick="openBatchPickupModal('requests')"><i class="fa-solid fa-calendar-check" style="margin-right:4px;"></i>Schedule Requests (${reqSelCount})</button>` : ""}
+        ${eligIdaIds.size ? `<button type="button" class="btn-maroon" style="padding:6px 12px;font-size:11px;" ${idaSelCount ? "" : "disabled"} onclick="openBatchPickupModal('idapps')"><i class="fa-solid fa-id-card" style="margin-right:4px;"></i>Schedule IDs (${idaSelCount})</button>` : ""}
+      </div>
+    </div>` : "";
     el.innerHTML = adminTableShell({
       icon: "fa-solid fa-inbox",
       title: "All Requests",
       count: `${combined.length} total`,
       filtersHtml: adminSearchBox("reqAdminQBox", "reqAdminQ", "renderServiceRequests", "Search by name, student ID, or request ID…", q)
-        + `<div style="margin-bottom:12px;"><select id="reqAdminSvc" class="glass-input" style="max-width:280px;padding:8px;font-size:12px;" onchange="renderServiceRequests()"><option value="">All types</option><optgroup label="Service Requests">${REQ_SERVICES.map((s) => `<option value="${s.key}"${svcF === s.key ? " selected" : ""}>${s.label}</option>`).join("")}</optgroup><optgroup label="ID Applications">${idaTypeOpts.map((t) => `<option value="ida:${esc(t)}"${svcF === "ida:" + t ? " selected" : ""}>${esc(t)}</option>`).join("")}</optgroup></select></div>`,
-      theadHtml: "<th>Request</th><th>Student</th><th>Status</th><th>Pickup / Visit</th><th>Filed</th><th style=\"text-align:right;\">Action</th>",
+        + `<div style="margin-bottom:12px;"><select id="reqAdminSvc" class="glass-input" style="max-width:280px;padding:8px;font-size:12px;" onchange="renderServiceRequests()"><option value="">All types</option><optgroup label="Service Requests">${REQ_SERVICES.map((s) => `<option value="${s.key}"${svcF === s.key ? " selected" : ""}>${s.label}</option>`).join("")}</optgroup><optgroup label="ID Applications">${idaTypeOpts.map((t) => `<option value="ida:${esc(t)}"${svcF === "ida:" + t ? " selected" : ""}>${esc(t)}</option>`).join("")}</optgroup></select></div>`
+        + batchBar,
+      theadHtml: `<th style="width:34px;"></th><th>Request</th><th>Student</th><th>Status</th><th>Pickup / Visit</th><th>Filed</th><th style="text-align:right;">Action</th>`,
       rowsHtml: rows,
       emptyHtml: emptyState(q || svcF ? "No requests match your filters." : "No requests yet."),
       paginationHtml: modulePagination("req-admin", combined.length, "renderServiceRequests"),
     });
   } else {
+    void ensureMyFeedbackLoaded();
     const mine = MOD.requests.filter((r) => r.sn === session.id).reverse();
     const minePage = getModulePage("req-student", mine);
     const editing = reqEditingId ? MOD.requests.find((r) => r.id === reqEditingId) : null;
@@ -3041,8 +3126,9 @@ function renderServiceRequests() {
           ${(r.pickupDate) ? `<div style="font-size:11px;color:#15803d;margin-top:6px;"><i class="fa-solid fa-box-open" style="margin-right:4px;"></i>Pickup: <b>${esc(r.pickupDate)} ${esc(r.pickupTime)}</b>${r.pickupNote ? ` — ${esc(r.pickupNote)}` : ""}</div>` : ""}
           ${r.appointmentCode ? `<div style="font-size:11px;color:rgba(30,5,5,.65);margin-top:6px;"><i class="fa-solid fa-calendar-check" style="color:#8B1A1A;margin-right:4px;"></i>Visit: <b>${esc(r.appointmentCode)}</b> · ${esc(r.dateLabel)} ${esc(r.time)}</div>` : ""}
           ${r.history && r.history.length ? `<div style="margin-top:6px;font-size:10px;color:rgba(30,5,5,.55);font-family:monospace;">${r.history.map((h) => `${esc(h.ts)} — ${esc(h.status)}${h.note ? ": " + esc(h.note) : ""}`).join("<br>")}</div>` : ""}
-          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             ${r.status === "Needs Revision" ? `<button onclick="reqEditingId='${esc(r.id)}';renderServiceRequests();window.scrollTo(0,0);" class="btn-maroon" style="padding:6px 10px;font-size:11px;">Revise</button>` : ""}
+            ${/^(completed|claimed)$/i.test(r.status || "") ? csatActionHtml(r.id, reqServiceLabel(r.service)) : ""}
           </div>
         </div>`).join("") : emptyState("No requests yet.")}
       ${modulePagination("req-student", mine.length, "renderServiceRequests")}
@@ -4411,19 +4497,33 @@ function renderAcctApprovals() {
   const wrap = document.getElementById("acctApprovalsWrap");
   if (!wrap) return;
   const pending = PENDING_ACCOUNTS;
-  if (!pending.length) { wrap.innerHTML = ""; return; }
+  if (!pending.length) { BATCH_SEL.accounts.clear(); wrap.innerHTML = ""; return; }
+  const validIds = new Set(pending.map((u) => u.id));
+  for (const id of [...BATCH_SEL.accounts]) { if (!validIds.has(id)) BATCH_SEL.accounts.delete(id); }
+  const selCount = BATCH_SEL.accounts.size;
   wrap.innerHTML = `
     <div class="glass-card" style="overflow:hidden;border:1px solid rgba(245,197,24,.45);">
-      <div style="padding:16px 20px;border-bottom:1px solid rgba(139,26,26,.1);display:flex;align-items:center;gap:8px;">
-        <span style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-user-clock" style="color:#C8890F;margin-right:8px;"></i>Account Approvals</span>
-        <span style="font-size:10px;font-weight:800;background:rgba(245,197,24,.2);border:1px solid rgba(212,160,23,.5);color:#7a4f00;border-radius:99px;padding:3px 9px;">${pending.length} pending</span>
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(139,26,26,.1);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" class="batch-chk" ${selCount === pending.length ? "checked" : ""} onchange="toggleBatchSelectAll('accounts', this.checked)" aria-label="Select all pending accounts">
+          <span style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-user-clock" style="color:#C8890F;margin-right:8px;"></i>Account Approvals</span>
+          <span style="font-size:10px;font-weight:800;background:rgba(245,197,24,.2);border:1px solid rgba(212,160,23,.5);color:#7a4f00;border-radius:99px;padding:3px 9px;">${pending.length} pending</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <button type="button" onclick="batchApproveAccounts(true)" class="btn-maroon" style="padding:6px 12px;font-size:11px;" ${selCount ? "" : "disabled"}><i class="fa-solid fa-check-double" style="margin-right:4px;"></i>Approve Selected (${selCount})</button>
+          <button type="button" onclick="batchApproveAccounts(false)" class="btn-ghost" style="padding:6px 12px;font-size:11px;color:#b91c1c;" ${selCount ? "" : "disabled"}><i class="fa-solid fa-xmark" style="margin-right:4px;"></i>Reject Selected</button>
+          ${pending.length > 1 ? `<button type="button" onclick="batchApproveAccounts(true, true)" class="btn-gold" style="padding:6px 12px;font-size:11px;"><i class="fa-solid fa-bolt" style="margin-right:4px;"></i>Approve All (${pending.length})</button>` : ""}
+        </div>
       </div>
       <div style="padding:8px 20px 14px;">
         ${pending.map((u) => `
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid rgba(139,26,26,.06);">
-            <div>
-              <div style="font-size:13px;font-weight:800;color:#1a0505;">${esc(u.name)}</div>
-              <div style="font-size:11px;font-family:monospace;color:rgba(30,5,5,.6);">${esc(u.id)} · ${esc(u.email)} · ${esc(u.course || "")} ${esc(u.year || "")}</div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input type="checkbox" class="batch-chk" data-batch="accounts" value="${esc(u.id)}" ${BATCH_SEL.accounts.has(u.id) ? "checked" : ""} onchange="toggleBatchItem('accounts','${esc(u.id)}',this.checked)" aria-label="Select ${esc(u.id)}">
+              <div>
+                <div style="font-size:13px;font-weight:800;color:#1a0505;">${esc(u.name)}</div>
+                <div style="font-size:11px;font-family:monospace;color:rgba(30,5,5,.6);">${esc(u.id)} · ${esc(u.email)} · ${esc(u.course || "")} ${esc(u.year || "")}</div>
+              </div>
             </div>
             <div style="display:flex;gap:6px;">
               <button onclick="acctApprove('${esc(u.id)}')" style="background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.4);color:#15803d;font-weight:800;padding:7px 14px;border-radius:9px;font-size:12px;cursor:pointer;font-family:inherit;"><i class="fa-solid fa-check" style="margin-right:4px;"></i>Approve</button>
@@ -4529,7 +4629,11 @@ async function loadSystemPage() {
       </div>
       <div class="glass-card" style="padding:22px;text-align:center;font-size:12px;color:rgba(30,5,5,.55);"><span class="spinner" style="border-color:rgba(139,26,26,.2);border-top-color:#8B1A1A;"></span> Loading insights…</div>
     </div>`;
-  const [analytics, faq] = await Promise.all([api("/api/reports/analytics"), api("/api/faq-analytics")]);
+  const qs = new URLSearchParams();
+  if (ANALYTICS_RANGE.from) qs.set("from", ANALYTICS_RANGE.from);
+  if (ANALYTICS_RANGE.to) qs.set("to", ANALYTICS_RANGE.to);
+  const analyticsUrl = `/api/reports/analytics${qs.toString() ? `?${qs.toString()}` : ""}`;
+  const [analytics, faq] = await Promise.all([api(analyticsUrl), api("/api/faq-analytics")]);
   window.__qrsAnalytics = analytics.ok ? analytics.data : null;
   window.__qrsFaqUsage = faq.ok ? faq.data : null;
   window.__qrsSystemLoadedAt = new Date();
@@ -4546,21 +4650,23 @@ function renderSystemPage() {
   const totalAppointments = a ? sum(a.services) : 0;
   const totalQueries = f ? (Number(f.totalQueries) || 0) : 0;
   const asst = a && a.assistant ? a.assistant : null;
+  const ops = a && a.operations ? a.operations : null;
+  const csat = a && a.csat ? a.csat : null;
   const asstTotal = asst && asst.queries ? (Number(asst.queries.total) || 0) : 0;
   const asstHigh = asst && asst.queries ? (Number(asst.queries.high) || 0) : 0;
   const answerRate = asstTotal ? Math.round((asstHigh / asstTotal) * 100) : 0;
   const palette = ["#8B1A1A", "#D4A017", "#15803d", "#1d4ed8", "#7c3aed", "#0e7490", "#b45309", "#be123c"];
   const barList = (items, opts) => {
     const o = opts || {};
-    const list = [...(items || [])].sort((x, y) => (Number(y.count) || 0) - (Number(x.count) || 0));
+    const list = o.keepOrder ? [...(items || [])] : [...(items || [])].sort((x, y) => (Number(y.count) || 0) - (Number(x.count) || 0));
     if (!list.length) return `<div class="empty-state" style="padding:22px 12px;"><i class="fa-solid fa-chart-column"></i>${esc(o.empty || "No data yet.")}</div>`;
     const max = Math.max(...list.map((x) => Number(x.count) || 0), 1);
     const shown = o.limit ? list.slice(0, o.limit) : list;
     return `<div class="insight-bars">${shown.map((x, i) => {
-      const pct = Math.max(4, Math.round(((Number(x.count) || 0) / max) * 100));
+      const pct = x.count ? Math.max(4, Math.round(((Number(x.count) || 0) / max) * 100)) : 0;
       const color = palette[i % palette.length];
       return `<div class="insight-bar-row" title="${esc(x.label)} — ${esc(x.count)}">
-        <div class="insight-bar-top"><span class="insight-bar-label">${i < 3 ? `<span class="insight-rank">${i + 1}</span>` : ""}${esc(x.label)}</span><b class="insight-bar-count">${esc(x.count)}</b></div>
+        <div class="insight-bar-top"><span class="insight-bar-label">${!o.keepOrder && i < 3 ? `<span class="insight-rank">${i + 1}</span>` : ""}${esc(x.label)}</span><b class="insight-bar-count">${esc(x.displayValue != null ? x.displayValue : x.count)}</b></div>
         <div class="insight-track"><div class="insight-fill" style="width:${pct}%;background:linear-gradient(90deg,${color},${color}cc);"></div></div>
         ${x.sub ? `<div class="insight-bar-sub">${esc(x.sub)}</div>` : ""}
       </div>`;
@@ -4571,7 +4677,7 @@ function renderSystemPage() {
         <div class="input-label" style="margin-bottom:0;">${esc(label)}</div>
         <span class="insight-kpi-icon"><i class="fa-solid ${icon}"></i></span>
       </div>
-      <div style="font-size:38px;font-weight:900;color:#1a0505;margin:8px 0 2px;line-height:1;">${esc(value)}</div>
+      <div style="font-size:34px;font-weight:900;color:#1a0505;margin:8px 0 2px;line-height:1;">${esc(value)}</div>
       <div style="font-size:11px;color:rgba(30,5,5,.68);">${sub}</div>
     </div>`;
   const sectionHead = (icon, title, sub, actions) => `<div class="insight-head">
@@ -4583,33 +4689,89 @@ function renderSystemPage() {
   const matches = (f && f.matches) || [];
   const faqBars = matches.map((x) => ({ label: x.question, count: x.count, sub: /unmatched/i.test(x.question || "") ? "No FAQ match — consider adding one" : "Matched FAQ query" }));
   const topUnanswered = (asst && asst.topUnanswered) || [];
+  const presets = [
+    { key: "all", label: "All Time" },
+    { key: "7d", label: "Last 7 Days" },
+    { key: "30d", label: "Last 30 Days" },
+    { key: "month", label: "This Month" },
+    { key: "year", label: "This Year" },
+  ];
+  const exportTypes = [
+    { type: "appointments", label: "Appointments", icon: "fa-calendar-check" },
+    { type: "requests", label: "Service Requests", icon: "fa-file-circle-check" },
+    { type: "idapps", label: "ID Applications", icon: "fa-id-card" },
+    { type: "events", label: "Event Requests", icon: "fa-champagne-glasses" },
+    { type: "referrals", label: "Referrals", icon: "fa-hand-holding-heart" },
+    { type: "complaints", label: "Complaints", icon: "fa-shield-heart" },
+    { type: "feedback", label: "CSAT Ratings", icon: "fa-star" },
+    { type: "audit", label: "Audit Logs", icon: "fa-terminal" },
+  ];
+  const rangeBadge = ANALYTICS_RANGE.from || ANALYTICS_RANGE.to
+    ? `${ANALYTICS_RANGE.from || "Beginning"} → ${ANALYTICS_RANGE.to || "Today"}`
+    : "All Time";
   box.innerHTML = `
   <div class="insight-meta">
     <span class="badge badge-ready"><i class="fa-solid fa-lock" style="margin-right:5px;"></i>Super Admin only</span>
+    <span class="insight-pill"><i class="fa-solid fa-calendar-days" style="margin-right:5px;"></i>${esc(rangeBadge)}</span>
     ${loadedAt ? `<span class="insight-updated"><i class="fa-solid fa-rotate-right" style="margin-right:5px;"></i>Updated ${esc(loadedAt)}</span>` : ""}
     <span style="flex:1;"></span>
     <button class="btn-ghost" onclick="loadSystemPage()" style="padding:7px 14px;font-size:12px;"><i class="fa-solid fa-arrows-rotate" style="margin-right:6px;"></i>Refresh</button>
     ${a ? `<button class="btn-maroon" onclick="printAnalyticsReport(window.__qrsAnalytics)" style="padding:7px 14px;font-size:12px;"><i class="fa-solid fa-print" style="margin-right:6px;"></i>Print / PDF</button>` : ""}
   </div>
+  <div class="glass-card analytics-range-bar">
+    <div style="font-size:11px;font-weight:800;color:#8B1A1A;text-transform:uppercase;letter-spacing:.06em;"><i class="fa-solid fa-filter" style="margin-right:5px;"></i>Date Range</div>
+    <div class="analytics-presets">
+      ${presets.map((p) => `<button type="button" onclick="setAnalyticsPreset('${p.key}')" class="${ANALYTICS_RANGE.preset === p.key ? "btn-maroon" : "btn-ghost"}" style="padding:5px 11px;font-size:11px;border-radius:999px;">${esc(p.label)}</button>`).join("")}
+    </div>
+    <span style="flex:1;"></span>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <input id="analyticsFrom" type="date" class="glass-input" style="width:auto;padding:5px 10px;font-size:12px;" value="${esc(ANALYTICS_RANGE.from)}" aria-label="From date">
+      <span style="font-size:11px;color:rgba(30,5,5,.55);">to</span>
+      <input id="analyticsTo" type="date" class="glass-input" style="width:auto;padding:5px 10px;font-size:12px;" value="${esc(ANALYTICS_RANGE.to)}" aria-label="To date">
+      <button type="button" onclick="applyCustomAnalyticsRange()" class="btn-gold" style="padding:6px 12px;font-size:11px;">Apply</button>
+    </div>
+  </div>
   <div class="grid-4 insight-kpis">
     ${kpi("ac-maroon", "fa-user-graduate", "Students tracked", totalStudents.toLocaleString(), a ? `${(a.byCourse || []).length} courses represented` : "Analytics unavailable")}
-    ${kpi("ac-gold", "fa-calendar-check", "Appointments logged", totalAppointments.toLocaleString(), a ? `${(a.services || []).length} service lanes` : "Analytics unavailable")}
-    ${kpi("ac-green", "fa-robot", "Chatbot queries", totalQueries.toLocaleString(), matches.length ? `Top: ${esc(String(matches[0].question).slice(0, 42))}${String(matches[0].question).length > 42 ? "…" : ""}` : "From Student Service Help")}
-    ${kpi("ac-blue", "fa-wand-magic-sparkles", "Assistant answer rate", asstTotal ? `${answerRate}%` : "—", asstTotal ? `${asstHigh} of ${asstTotal} high-confidence` : "No assistant traffic yet")}
+    ${kpi("ac-gold", "fa-calendar-check", "Appointments logged", totalAppointments.toLocaleString(), ops ? `${ops.completionRate}% completed · ${ops.noShowRate}% no-show` : "Analytics unavailable")}
+    ${kpi("ac-green", "fa-star", "Client Satisfaction", csat && csat.total ? `${csat.average.toFixed(2)} ★` : "—", csat && csat.total ? `${csat.total} student rating${csat.total === 1 ? "" : "s"}` : "No ratings in range yet")}
+    ${kpi("ac-blue", "fa-stopwatch", "Avg Turnaround", ops && ops.avgTurnaroundHours != null ? `${ops.avgTurnaroundHours}h` : "—", ops && ops.completedRequestsCount ? `Across ${ops.completedRequestsCount} completed requests` : (asstTotal ? `AI answer rate: ${answerRate}%` : "No completed requests in range"))}
   </div>
+  ${ops ? `<div class="glass-card insight-card">
+    ${sectionHead("fa-gauge-high", "Operational Health", "Appointment throughput, no-show tracking, and request completion speed for the selected range.", "")}
+    <div class="insight-mini-grid">
+      <div class="insight-mini"><div class="input-label" style="margin-bottom:0;">Served / Completed</div><div class="insight-mini-value" style="color:#15803d;">${esc(ops.servedCount)}</div><div class="insight-mini-sub">${esc(ops.completionRate)}% completion rate</div></div>
+      <div class="insight-mini"><div class="input-label" style="margin-bottom:0;">No-Shows</div><div class="insight-mini-value" style="color:#b45309;">${esc(ops.noShowCount)}</div><div class="insight-mini-sub">${esc(ops.noShowRate)}% of resolved visits</div></div>
+      <div class="insight-mini"><div class="input-label" style="margin-bottom:0;">Cancelled</div><div class="insight-mini-value" style="color:#991b1b;">${esc(ops.cancelledCount)}</div><div class="insight-mini-sub">${esc(ops.cancellationRate)}% cancellation rate</div></div>
+      <div class="insight-mini"><div class="input-label" style="margin-bottom:0;">Active / Pending</div><div class="insight-mini-value" style="color:#1d4ed8;">${esc(ops.activeCount + ops.pendingCount)}</div><div class="insight-mini-sub">${esc(ops.pendingCount)} awaiting approval</div></div>
+    </div>
+  </div>` : ""}
+  ${csat ? `<div class="glass-card insight-card">
+    ${sectionHead("fa-star", "Client Satisfaction (CSAT)", "Student post-service ratings (1–5 stars) for ISO / ARTA service quality monitoring.", `<button class="btn-soft" onclick="window.open(analyticsExportUrl('feedback'),'_blank')" style="padding:7px 14px;font-size:12px;"><i class="fa-solid fa-file-csv" style="margin-right:6px;"></i>Export CSAT CSV</button>`)}
+    <div class="insight-grid">
+      <div class="insight-panel"><div class="insight-panel-title"><i class="fa-solid fa-ranking-star"></i>Rating Distribution</div>${barList(csat.distribution, { keepOrder: true, empty: "No ratings yet." })}</div>
+      <div class="insight-panel"><div class="insight-panel-title"><i class="fa-solid fa-concierge-bell"></i>Average Rating by Service</div>${barList((csat.byService || []).map((s) => ({ label: s.label, count: Math.round(s.average * 20), displayValue: `${s.average.toFixed(2)} ★ (${s.count})` })), { empty: "No service ratings yet." })}</div>
+    </div>
+    ${csat.recent && csat.recent.length ? `<div class="insight-panel" style="margin-top:12px;"><div class="insight-panel-title"><i class="fa-solid fa-comment-dots"></i>Recent Student Feedback</div><div style="display:grid;gap:8px;">${csat.recent.map((r) => `<div class="csat-comment-card"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;"><span style="font-size:12px;font-weight:800;color:#1a0505;">${esc(r.serviceLabel)} <span style="font-family:monospace;font-size:10px;color:rgba(30,5,5,.55);">${esc(r.requestId)}</span></span><span class="csat-badge">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)} ${r.rating}/5</span></div>${r.comment ? `<div style="font-size:12px;color:rgba(30,5,5,.78);margin-top:4px;">“${esc(r.comment)}”</div>` : ""}<div style="font-size:10px;color:rgba(30,5,5,.5);margin-top:4px;">${esc(r.studentId)} · ${esc(r.ts)}</div></div>`).join("")}</div></div>` : ""}
+  </div>` : ""}
   <div class="glass-card insight-card">
-    ${sectionHead("fa-chart-column", "Reports & Analytics", "Service trends at a glance — export an official CSV for records.", `<button class="btn-soft" onclick="window.open('/api/reports/export?type=appointments','_blank')" style="padding:7px 14px;font-size:12px;"><i class="fa-solid fa-file-csv" style="margin-right:6px;"></i>Appointments CSV</button><button class="btn-soft" onclick="window.open('/api/reports/export?type=complaints','_blank')" style="padding:7px 14px;font-size:12px;"><i class="fa-solid fa-file-csv" style="margin-right:6px;"></i>Complaints CSV</button>`)}
+    ${sectionHead("fa-chart-column", "Reports & Analytics", "Service trends at a glance — all exports respect the active date range above.", "")}
     ${a ? `<div class="insight-grid">
       <div class="insight-panel"><div class="insight-panel-title"><i class="fa-solid fa-graduation-cap"></i>Students by course</div>${barList(a.byCourse, { limit: 6, empty: "No students grouped by course yet." })}</div>
       <div class="insight-panel"><div class="insight-panel-title"><i class="fa-solid fa-layer-group"></i>Students by year level</div>${barList(a.byYear, { empty: "No students grouped by year yet." })}</div>
-      <div class="insight-panel"><div class="insight-panel-title"><i class="fa-solid fa-concierge-bell"></i>Appointments by service</div>${barList(a.services, { limit: 7, empty: "No appointments recorded yet." })}</div>
-      <div class="insight-panel"><div class="insight-panel-title"><i class="fa-solid fa-clock"></i>Peak appointment times</div>${barList(a.peakTimes, { limit: 6, empty: "No peak-time signal yet." })}</div>
+      <div class="insight-panel"><div class="insight-panel-title"><i class="fa-solid fa-concierge-bell"></i>Appointments by service</div>${barList(a.services, { limit: 7, empty: "No appointments recorded in range." })}</div>
+      <div class="insight-panel"><div class="insight-panel-title"><i class="fa-solid fa-clock"></i>Peak appointment times</div>${barList(a.peakTimes, { limit: 6, empty: "No peak-time signal in range." })}</div>
     </div>
-    <div class="info-box" style="margin-top:14px;"><i class="fa-solid fa-circle-info" style="margin-right:6px;"></i>Bars are ranked by volume. For audits and month-end reports, use the CSV exports above — they carry the complete dataset.</div>`
+    <div style="margin-top:16px;">
+      <div class="input-label" style="margin-bottom:8px;"><i class="fa-solid fa-file-csv" style="color:#8B1A1A;margin-right:5px;"></i>Complete CSV Export Center (${esc(rangeBadge)})</div>
+      <div class="export-grid">
+        ${exportTypes.map((e) => `<button type="button" class="btn-soft" onclick="window.open(analyticsExportUrl('${e.type}'),'_blank')" style="padding:9px 12px;font-size:12px;justify-content:flex-start;display:flex;align-items:center;gap:8px;"><i class="fa-solid ${e.icon}" style="color:#8B1A1A;"></i><span>${esc(e.label)} CSV</span></button>`).join("")}
+      </div>
+    </div>`
     : `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i>Could not load analytics. Check your connection, then press Refresh.</div>`}
   </div>
   ${asst ? `<div class="glass-card insight-card">
-    ${sectionHead("fa-brain", "Assistant Effectiveness", "How much the chatbot resolves on its own vs escalates to a ticket.", "")}
+    ${sectionHead("fa-brain", "Assistant Effectiveness", "How much the chatbot resolves on its own vs escalates to a ticket.", `<span class="insight-pill">${asstTotal ? `${answerRate}% auto-answered` : "No traffic"}</span>`)}
     <div class="insight-mini-grid">
       <div class="insight-mini"><div class="input-label" style="margin-bottom:0;">High confidence</div><div class="insight-mini-value" style="color:#15803d;">${esc(asst.queries.high)}</div><div class="insight-mini-sub">Auto-answered</div></div>
       <div class="insight-mini"><div class="input-label" style="margin-bottom:0;">Medium</div><div class="insight-mini-value" style="color:#b45309;">${esc(asst.queries.medium)}</div><div class="insight-mini-sub">Clarified first</div></div>
@@ -5774,4 +5936,529 @@ function pickBackupFile() {
     } catch { showToast("The selected file is not a valid STARS full backup.", "rgba(155,22,22,.85)"); }
   }; reader.readAsText(file); };
   picker.click();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Feature Extensions: CSAT Ratings, Calendar Export, Walk-In Queue,
+// Batch Staff Actions, and Date-Range Analytics / CSV Exports
+// ═══════════════════════════════════════════════════════════════════════
+
+var MY_FEEDBACK = {};
+var MY_FEEDBACK_LOADED = false;
+var _csatSelectedRating = 0;
+
+function setMyFeedbackList(items) {
+  MY_FEEDBACK = {};
+  (items || []).forEach((fb) => {
+    if (fb && fb.requestId) MY_FEEDBACK[fb.requestId] = fb;
+  });
+  MY_FEEDBACK_LOADED = true;
+}
+
+async function ensureMyFeedbackLoaded() {
+  if (!session || session.role !== "student" || MY_FEEDBACK_LOADED) return;
+  MY_FEEDBACK_LOADED = true;
+  const res = await api("/api/feedback");
+  if (res.ok && Array.isArray(res.data?.items)) {
+    setMyFeedbackList(res.data.items);
+    const active = document.querySelector(".page.active")?.id;
+    if (active === "page-requests") renderServiceRequests();
+    else if (active === "page-idapp") renderIdApp();
+    else if (active === "page-appointment") renderMyAppointments();
+  }
+}
+
+function csatActionHtml(requestId, serviceLabel) {
+  const existing = MY_FEEDBACK[requestId];
+  if (existing) {
+    return `<span class="csat-badge" title="${esc(existing.comment || "Submitted rating")}"><i class="fa-solid fa-star"></i>${existing.rating}/5 Rated</span>`;
+  }
+  return `<button type="button" onclick="openFeedbackModal('${esc(requestId)}','${esc(serviceLabel || "SSO Service")}')" class="btn-gold" style="padding:5px 10px;font-size:11px;"><i class="fa-solid fa-star" style="margin-right:4px;"></i>Rate Service</button>`;
+}
+
+const CSAT_LABELS = {
+  1: "Poor — Needs major improvement",
+  2: "Fair — Below expectations",
+  3: "Good — Met expectations",
+  4: "Very Good — Smooth & helpful",
+  5: "Excellent — Outstanding service!",
+};
+
+function openFeedbackModal(requestId, serviceLabel) {
+  _csatSelectedRating = 5;
+  openAppModal({
+    title: "Rate Your SSO Service Experience",
+    subtitle: `${serviceLabel || "SSO Service"} · ${requestId}`,
+    icon: "fa-star",
+    content: `
+      <div style="display:grid;gap:14px;">
+        <div style="text-align:center;padding:8px 0;">
+          <div style="font-size:12px;font-weight:700;color:rgba(30,5,5,.7);margin-bottom:8px;">How satisfied were you with this service?</div>
+          <div id="csatStarPicker" class="csat-stars">
+            ${[1, 2, 3, 4, 5].map((n) => `<button type="button" class="csat-star active" data-star="${n}" onclick="setCsatRating(${n})" aria-label="${n} star${n === 1 ? "" : "s"}"><i class="fa-solid fa-star"></i></button>`).join("")}
+          </div>
+          <div id="csatStarLabel" style="font-size:12px;font-weight:800;color:#8B1A1A;margin-top:8px;">${esc(CSAT_LABELS[5])}</div>
+        </div>
+        <div>
+          <span class="input-label">Comments or Suggestions <span style="font-weight:400;color:rgba(30,5,5,.5);">(optional)</span></span>
+          <textarea id="csatCommentInput" class="glass-input" rows="3" maxlength="500" placeholder="Share what went well or how we can serve students better…"></textarea>
+        </div>
+        <div class="app-modal-actions">
+          <button type="button" class="btn-soft" onclick="closeAppModal()">Cancel</button>
+          <button id="csatSubmitBtn" type="button" class="btn-maroon" onclick="submitServiceFeedback('${esc(requestId)}')"><i class="fa-solid fa-paper-plane" style="margin-right:6px;"></i>Submit Rating</button>
+        </div>
+      </div>`,
+  });
+}
+
+function setCsatRating(n) {
+  _csatSelectedRating = Math.min(5, Math.max(1, Number(n) || 5));
+  document.querySelectorAll("#csatStarPicker .csat-star").forEach((btn) => {
+    const val = Number(btn.getAttribute("data-star") || 0);
+    btn.classList.toggle("active", val <= _csatSelectedRating);
+  });
+  const lbl = document.getElementById("csatStarLabel");
+  if (lbl) lbl.textContent = CSAT_LABELS[_csatSelectedRating] || "";
+}
+
+async function submitServiceFeedback(requestId) {
+  const btn = document.getElementById("csatSubmitBtn");
+  const comment = (document.getElementById("csatCommentInput")?.value || "").trim();
+  if (btn) btn.disabled = true;
+  const res = await api("/api/feedback", {
+    method: "POST",
+    body: { requestId, rating: _csatSelectedRating, comment },
+  });
+  if (btn) btn.disabled = false;
+  if (!res.ok) {
+    showToast(`❌ ${res.error || "Could not submit feedback."}`, "rgba(155,22,22,.85)");
+    return;
+  }
+  if (res.data?.feedback) MY_FEEDBACK[requestId] = res.data.feedback;
+  closeAppModal();
+  showToast("⭐ Thank you for your feedback!");
+  const active = document.querySelector(".page.active")?.id;
+  if (active === "page-appointment") await renderMyAppointments();
+  else if (active === "page-requests") renderServiceRequests();
+  else if (active === "page-idapp") renderIdApp();
+  else if (active === "page-student") await renderStudentPage();
+}
+
+// ── One-Tap Calendar Export (.ics & Google Calendar) ───────────────────
+
+function downloadAppointmentIcs(code) {
+  window.open(`/api/queue/${encodeURIComponent(code)}/ics`, "_blank");
+}
+
+function openGoogleCalendarForAppointment(code) {
+  const a = (MOD.visits || []).find((x) => x.q === code) || (queueData || []).find((x) => x.q === code);
+  if (!a) {
+    downloadAppointmentIcs(code);
+    return;
+  }
+  let start = a.startsAt ? new Date(a.startsAt) : null;
+  if (!start || Number.isNaN(start.getTime())) {
+    const parsed = new Date(`${a.dateLabel} ${a.time}`);
+    start = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  }
+  const end = new Date(start.getTime() + 20 * 60000);
+  const toUtc = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const title = `PUP San Pedro SSO — ${a.serviceLabel || a.service || "Appointment"} (${a.q})`;
+  const details = [
+    `Appointment Code: ${a.q}`,
+    `Service: ${a.serviceLabel || a.service || "SSO Visit"}`,
+    `Schedule: ${a.dateLabel} at ${a.time} (PHT)`,
+    a.purpose ? `Purpose: ${a.purpose}` : "",
+    "Present your STARS offline QR pass or appointment code at the SSO Service Desk.",
+  ].filter(Boolean).join("\n");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: title,
+    dates: `${toUtc(start)}/${toUtc(end)}`,
+    location: "Student Services Office, PUP San Pedro Campus",
+    details,
+  });
+  window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, "_blank", "noopener");
+}
+
+// ── Staff-Assisted Walk-In / Express Queue Entry ───────────────────────
+
+var _walkInSearchTimer = null;
+
+function openWalkInModal() {
+  if (!session || !["admin", "super_admin", "scanner"].includes(session.role)) {
+    showToast("⚠️ Staff access required.", "rgba(155,22,22,.85)");
+    return;
+  }
+  const services = [
+    { key: "GENERAL", label: "General SSO Visit" },
+    { key: "ID_NEW", label: "ID Application — New" },
+    { key: "ID_LOST", label: "ID Application — Lost" },
+    { key: "AUTH", label: "Authentication" },
+    { key: "EXCUSE", label: "Excuse Slip" },
+    { key: "EVENT", label: "Event Request" },
+    { key: "PSYCH", label: "Psychological Intervention" },
+  ];
+  openAppModal({
+    title: "Staff-Assisted Walk-In Pass",
+    subtitle: "Issue an express queue ticket right from the Service Desk",
+    icon: "fa-person-walking",
+    wide: true,
+    content: `
+      <div style="display:grid;gap:12px;">
+        <div>
+          <span class="input-label">Search Student (Directory or Masterlist)</span>
+          <div style="position:relative;">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:rgba(30,5,5,.45);font-size:12px;"></i>
+            <input id="walkInSearchInput" class="glass-input" style="padding-left:34px;" placeholder="Type student number (e.g. 2024-00123-SP-0) or name…" oninput="debouncedWalkInSearch(this.value)">
+          </div>
+          <div id="walkInMatches" class="walkin-results"></div>
+        </div>
+        <div class="app-modal-grid">
+          <div class="app-field">
+            <label>Student Number *</label>
+            <input id="walkInSn" class="glass-input" placeholder="2024-00123-SP-0">
+          </div>
+          <div class="app-field">
+            <label>Full Name *</label>
+            <input id="walkInName" class="glass-input" placeholder="Juan dela Cruz">
+          </div>
+          <div class="app-field">
+            <label>Service Lane *</label>
+            <select id="walkInService" class="glass-input">
+              ${services.map((s) => `<option value="${s.key}">${esc(s.label)}</option>`).join("")}
+            </select>
+          </div>
+          <div class="app-field">
+            <label>Purpose (optional)</label>
+            <input id="walkInPurpose" class="glass-input" placeholder="e.g. Document inquiry / Urgent pickup">
+          </div>
+          <div class="app-field full">
+            <label>Notes (optional)</label>
+            <input id="walkInNotes" class="glass-input" placeholder="Desk notes…">
+          </div>
+        </div>
+        <label style="display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#1a0505;cursor:pointer;">
+          <input id="walkInAutoCheckIn" type="checkbox" checked style="accent-color:#8B1A1A;width:16px;height:16px;"> Check in student immediately (ready to serve)
+        </label>
+        <div id="walkInFeedback" style="display:none;"></div>
+        <div class="app-modal-actions">
+          <button type="button" class="btn-soft" onclick="closeAppModal()">Close</button>
+          <button id="walkInSubmitBtn" type="button" class="btn-maroon" onclick="submitWalkInQueue()"><i class="fa-solid fa-ticket" style="margin-right:6px;"></i>Issue Walk-In Pass</button>
+        </div>
+      </div>`,
+  });
+}
+
+function debouncedWalkInSearch(val) {
+  if (_walkInSearchTimer) clearTimeout(_walkInSearchTimer);
+  const q = (val || "").trim();
+  const box = document.getElementById("walkInMatches");
+  if (!q || q.length < 2) {
+    if (box) box.innerHTML = "";
+    return;
+  }
+  _walkInSearchTimer = setTimeout(async () => {
+    const res = await api(`/api/queue/walkin?q=${encodeURIComponent(q)}`);
+    const target = document.getElementById("walkInMatches");
+    if (!target) return;
+    if (!res.ok || !res.data?.matches?.length) {
+      target.innerHTML = `<div style="font-size:11px;color:rgba(30,5,5,.55);padding:4px 2px;">No matching student found — you can still enter Student Number &amp; Name manually below.</div>`;
+      return;
+    }
+    target.innerHTML = res.data.matches.map((m) => `
+      <button type="button" class="walkin-match" onclick="pickWalkInStudent('${esc(m.studentId)}','${esc(m.name)}')">
+        <div>
+          <div style="font-size:12px;font-weight:800;color:#1a0505;">${esc(m.name || "Unnamed")} <span style="font-family:monospace;font-size:11px;color:#8B1A1A;">${esc(m.studentId)}</span></div>
+          <div style="font-size:10px;color:rgba(30,5,5,.6);">${esc([m.course, m.year, m.email].filter(Boolean).join(" · ") || "Masterlist entry")}</div>
+        </div>
+        <span class="badge ${m.registered ? "badge-approved" : "badge-pending"}" style="font-size:9px;">${m.registered ? "Registered" : "Masterlist"}</span>
+      </button>`).join("");
+  }, 220);
+}
+
+function pickWalkInStudent(sn, name) {
+  const snEl = document.getElementById("walkInSn");
+  const nameEl = document.getElementById("walkInName");
+  const box = document.getElementById("walkInMatches");
+  if (snEl) snEl.value = sn;
+  if (nameEl) nameEl.value = name;
+  if (box) box.innerHTML = "";
+}
+
+async function submitWalkInQueue() {
+  const studentId = (document.getElementById("walkInSn")?.value || "").trim();
+  const name = (document.getElementById("walkInName")?.value || "").trim();
+  const service = document.getElementById("walkInService")?.value || "GENERAL";
+  const purpose = (document.getElementById("walkInPurpose")?.value || "").trim();
+  const notes = (document.getElementById("walkInNotes")?.value || "").trim();
+  const autoCheckIn = !!document.getElementById("walkInAutoCheckIn")?.checked;
+  const fb = document.getElementById("walkInFeedback");
+  const btn = document.getElementById("walkInSubmitBtn");
+
+  if (!studentId) {
+    showToast("⚠️ Please enter or select a student number.", "rgba(180,130,0,.9)");
+    return;
+  }
+  if (btn) btn.disabled = true;
+  const res = await api("/api/queue/walkin", {
+    method: "POST",
+    body: { studentId, name, service, purpose, notes, autoCheckIn },
+  });
+  if (btn) btn.disabled = false;
+
+  if (!res.ok) {
+    const existing = res.data?.existing;
+    if (fb) {
+      fb.style.display = "block";
+      fb.innerHTML = `<div class="info-box" style="border-color:rgba(220,38,38,.35);background:rgba(239,68,68,.08);color:#991b1b;">
+        <b>${esc(res.error || "Could not issue walk-in pass.")}</b>
+        ${existing ? `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <span>Existing: <b>${esc(existing.q)}</b> (${esc(existing.serviceLabel)} · ${esc(existing.time)} · ${esc(existing.displayStatus)})</span>
+          ${["BOOKED", "RESCHEDULED"].includes(existing.status) ? `<button type="button" class="btn-maroon" style="padding:5px 10px;font-size:11px;" onclick="closeAppModal();queueStatus('${esc(existing.q)}','checkin')">Check In Now</button>` : ""}
+        </div>` : ""}
+      </div>`;
+    } else {
+      showToast(`❌ ${res.error || "Could not issue walk-in pass."}`, "rgba(155,22,22,.85)");
+    }
+    return;
+  }
+
+  const appt = res.data.appointment;
+  showToast(`✅ Walk-in pass ${appt.q} issued for ${appt.name}!`);
+  if (fb) {
+    fb.style.display = "block";
+    fb.innerHTML = `<div class="glass-card" style="padding:14px;border:1px solid rgba(21,128,61,.35);background:rgba(22,163,74,.08);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:18px;font-weight:900;color:#15803d;">${esc(appt.q)} — ${esc(appt.displayStatus)}</div>
+          <div style="font-size:12px;color:#1a0505;font-weight:700;">${esc(appt.name)} (${esc(appt.studentId)})</div>
+          <div style="font-size:11px;color:rgba(30,5,5,.65);">${esc(appt.serviceLabel)} · ${esc(appt.dateLabel)} · ${esc(appt.time)}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn-ghost" style="padding:6px 12px;font-size:11px;" onclick="printAppointmentQr('${esc(appt.q)}')"><i class="fa-solid fa-print" style="margin-right:4px;"></i>Print Slip</button>
+          <button type="button" class="btn-maroon" style="padding:6px 12px;font-size:11px;" onclick="closeAppModal();queueStatus('${esc(appt.q)}','serve')"><i class="fa-solid fa-check-double" style="margin-right:4px;"></i>Mark Served</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  const active = document.querySelector(".page.active")?.id;
+  if (active === "page-scanner") await loadScannerQueue();
+  else if (active === "page-appointments") { await loadQueueData(); renderAdminAppointments(); }
+  else if (active === "page-admin") { await loadQueueData(); renderAdminPage(); }
+}
+
+// ── Batch Staff Actions ────────────────────────────────────────────────
+
+var BATCH_SEL = {
+  accounts: new Set(),
+  pendingAppts: new Set(),
+  requests: new Set(),
+  idapps: new Set(),
+};
+
+function toggleBatchItem(group, id, checked) {
+  if (!BATCH_SEL[group]) return;
+  if (checked) BATCH_SEL[group].add(id);
+  else BATCH_SEL[group].delete(id);
+  if (group === "accounts") renderAcctApprovals();
+  else if (group === "pendingAppts") renderAdminApptPending();
+  else if (group === "requests") renderServiceRequests();
+  else if (group === "idapps") {
+    const active = document.querySelector(".page.active")?.id;
+    if (active === "page-requests") renderServiceRequests();
+    else renderIdApp();
+  }
+}
+
+function toggleBatchSelectAll(group, checked) {
+  if (!BATCH_SEL[group]) return;
+  BATCH_SEL[group].clear();
+  if (checked) {
+    if (group === "accounts") {
+      (PENDING_ACCOUNTS || []).forEach((u) => BATCH_SEL.accounts.add(u.id));
+    } else if (group === "pendingAppts") {
+      const q = (adminApptSearch || "").trim().toLowerCase();
+      (queueData || [])
+        .filter((a) => a.status === "PENDING_APPROVAL")
+        .filter((a) => !q || a.q.toLowerCase().includes(q) || (a.name || "").toLowerCase().includes(q) || (a.studentId || "").toLowerCase().includes(q))
+        .forEach((a) => BATCH_SEL.pendingAppts.add(a.q));
+    } else if (group === "idapps") {
+      (MOD.idapps || [])
+        .filter((a) => ["Approved", "Processing", "Ready for Claiming"].includes(a.status))
+        .filter((a) => matchQ(idaAdminQ, [a.name, a.sn, a.id, a.type, a.status]))
+        .forEach((a) => BATCH_SEL.idapps.add(a.id));
+    }
+  }
+  if (group === "accounts") renderAcctApprovals();
+  else if (group === "pendingAppts") renderAdminApptPending();
+  else if (group === "idapps") renderIdApp();
+}
+
+async function batchApproveAccounts(approve, allPending) {
+  const ids = allPending
+    ? (PENDING_ACCOUNTS || []).map((u) => u.id)
+    : [...BATCH_SEL.accounts];
+  if (!ids.length) return showToast("⚠️ Select at least one pending account.", "rgba(180,130,0,.9)");
+  const verb = approve ? "approve" : "reject and delete";
+  if (!confirm(`${approve ? "Approve" : "Reject"} ${ids.length} pending student account${ids.length === 1 ? "" : "s"}? This will ${verb} them and notify each student.`)) return;
+  const res = await api("/api/users/batch-approve", { method: "POST", body: { studentIds: ids, approve } });
+  if (!res.ok) {
+    showToast(`❌ ${res.error || "Batch account action failed."}`, "rgba(155,22,22,.85)");
+    return;
+  }
+  BATCH_SEL.accounts.clear();
+  showToast(`✅ ${res.data.processed} account${res.data.processed === 1 ? "" : "s"} ${approve ? "approved" : "rejected"}${res.data.skipped ? ` (${res.data.skipped} skipped)` : ""}.`);
+  await Promise.all([loadPendingAccounts(), loadAuditLog()]);
+  renderAcctApprovals();
+  renderAuditLog();
+}
+
+async function batchPendingAppointments(action, allPending) {
+  const q = (adminApptSearch || "").trim().toLowerCase();
+  const codes = allPending
+    ? (queueData || [])
+        .filter((a) => a.status === "PENDING_APPROVAL")
+        .filter((a) => !q || a.q.toLowerCase().includes(q) || (a.name || "").toLowerCase().includes(q) || (a.studentId || "").toLowerCase().includes(q))
+        .map((a) => a.q)
+    : [...BATCH_SEL.pendingAppts];
+  if (!codes.length) return showToast("⚠️ Select at least one pending appointment.", "rgba(180,130,0,.9)");
+  let reason = "";
+  if (action === "reject") {
+    const input = prompt(`Reject ${codes.length} pending booking${codes.length === 1 ? "" : "s"}? Optional reason sent to students:`, "");
+    if (input === null) return;
+    reason = input.trim();
+  } else if (!confirm(`Approve ${codes.length} pending appointment${codes.length === 1 ? "" : "s"} and email QR passes to students?`)) {
+    return;
+  }
+  const res = await api("/api/queue/batch-status", { method: "POST", body: { codes, action, reason } });
+  if (!res.ok) {
+    showToast(`❌ ${res.error || "Batch action failed."}`, "rgba(155,22,22,.85)");
+    return;
+  }
+  BATCH_SEL.pendingAppts.clear();
+  showToast(`✅ ${res.data.processed} appointment${res.data.processed === 1 ? "" : "s"} ${action === "approve" ? "approved" : "rejected"}${res.data.skipped ? ` (${res.data.skipped} skipped)` : ""}.`);
+  await Promise.all([loadQueueData(), loadModule("requests"), loadModule("events2"), loadModule("referrals")]);
+  renderAdminAppointments();
+}
+
+function openBatchPickupModal(kind) {
+  const ids = kind === "idapps" ? [...BATCH_SEL.idapps] : [...BATCH_SEL.requests];
+  if (!ids.length) return showToast("⚠️ Select at least one eligible record first.", "rgba(180,130,0,.9)");
+  const label = kind === "idapps" ? "ID Applications" : "Service Requests";
+  const todayIso = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+  openAppModal({
+    title: `Batch Schedule Pickup (${ids.length})`,
+    subtitle: `${label} · ${ids.length} selected record${ids.length === 1 ? "" : "s"}`,
+    icon: "fa-boxes-packing",
+    content: `
+      <div style="display:grid;gap:12px;">
+        <div class="info-box" style="font-size:11px;padding:10px 12px;">
+          <i class="fa-solid fa-circle-info" style="color:#D4A017;margin-right:5px;"></i>
+          Every selected student will receive a scheduled pickup notification, synced queue appointment, offline QR pass, and <code>.ics</code> calendar invite.
+        </div>
+        <div class="app-modal-grid">
+          <div class="app-field">
+            <label>Pickup Date *</label>
+            <input id="batchPickupDate" type="date" class="glass-input" value="${esc(todayIso)}">
+          </div>
+          <div class="app-field">
+            <label>Pickup Time *</label>
+            <input id="batchPickupTime" type="time" class="glass-input" value="09:00">
+          </div>
+          <div class="app-field full">
+            <label>Note / Claiming Instructions (optional)</label>
+            <input id="batchPickupNote" class="glass-input" placeholder="e.g. Bring valid student ID and claim stub at Window 2">
+          </div>
+        </div>
+        <div class="app-modal-actions">
+          <button type="button" class="btn-soft" onclick="closeAppModal()">Cancel</button>
+          <button id="batchPickupSubmitBtn" type="button" class="btn-maroon" onclick="submitBatchPickup('${kind}')"><i class="fa-solid fa-calendar-check" style="margin-right:6px;"></i>Schedule ${ids.length} Pickup${ids.length === 1 ? "" : "s"}</button>
+        </div>
+      </div>`,
+  });
+}
+
+async function submitBatchPickup(kind) {
+  const ids = kind === "idapps" ? [...BATCH_SEL.idapps] : [...BATCH_SEL.requests];
+  const dateIso = document.getElementById("batchPickupDate")?.value || "";
+  const time24 = document.getElementById("batchPickupTime")?.value || "";
+  const pickupNote = (document.getElementById("batchPickupNote")?.value || "").trim();
+  const pickupDate = toDateLabel(dateIso);
+  const pickupTime = toTimeLabel(time24);
+  if (!pickupDate || !pickupTime) {
+    showToast("⚠️ Please select both a pickup date and time.", "rgba(180,130,0,.9)");
+    return;
+  }
+  const btn = document.getElementById("batchPickupSubmitBtn");
+  if (btn) btn.disabled = true;
+  const res = await api("/api/modules/batch-pickup", {
+    method: "POST",
+    body: { kind, ids, pickupDate, pickupTime, pickupNote },
+  });
+  if (btn) btn.disabled = false;
+  if (!res.ok) {
+    showToast(`❌ ${res.error || "Batch pickup scheduling failed."}`, "rgba(155,22,22,.85)");
+    return;
+  }
+  if (kind === "idapps") BATCH_SEL.idapps.clear();
+  else BATCH_SEL.requests.clear();
+  closeAppModal();
+  showToast(`✅ Scheduled ${res.data.processed} pickup${res.data.processed === 1 ? "" : "s"} for ${pickupDate} at ${pickupTime}${res.data.skipped ? ` (${res.data.skipped} skipped)` : ""}.`);
+  await Promise.all([loadModule("requests"), loadModule("idapps"), loadQueueData()]);
+  const active = document.querySelector(".page.active")?.id;
+  if (active === "page-requests") renderServiceRequests();
+  else if (active === "page-idapp") renderIdApp();
+  else if (active === "page-appointments") renderAdminAppointments();
+}
+
+// ── Date-Range Analytics & Complete CSV Exports ────────────────────────
+
+var ANALYTICS_RANGE = { from: "", to: "", preset: "all" };
+
+function manilaIsoOffset(daysDelta) {
+  const d = new Date(Date.now() + daysDelta * 86400000);
+  return d.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+}
+
+function setAnalyticsPreset(preset) {
+  const today = manilaIsoOffset(0);
+  ANALYTICS_RANGE.preset = preset;
+  if (preset === "all") {
+    ANALYTICS_RANGE.from = "";
+    ANALYTICS_RANGE.to = "";
+  } else if (preset === "7d") {
+    ANALYTICS_RANGE.from = manilaIsoOffset(-6);
+    ANALYTICS_RANGE.to = today;
+  } else if (preset === "30d") {
+    ANALYTICS_RANGE.from = manilaIsoOffset(-29);
+    ANALYTICS_RANGE.to = today;
+  } else if (preset === "month") {
+    ANALYTICS_RANGE.from = `${today.slice(0, 7)}-01`;
+    ANALYTICS_RANGE.to = today;
+  } else if (preset === "year") {
+    ANALYTICS_RANGE.from = `${today.slice(0, 4)}-01-01`;
+    ANALYTICS_RANGE.to = today;
+  }
+  loadSystemPage();
+}
+
+function applyCustomAnalyticsRange() {
+  const from = (document.getElementById("analyticsFrom")?.value || "").trim();
+  const to = (document.getElementById("analyticsTo")?.value || "").trim();
+  if (from && to && from > to) {
+    showToast("⚠️ 'From' date cannot be after 'To' date.", "rgba(180,130,0,.9)");
+    return;
+  }
+  ANALYTICS_RANGE.from = from;
+  ANALYTICS_RANGE.to = to;
+  ANALYTICS_RANGE.preset = !from && !to ? "all" : "custom";
+  loadSystemPage();
+}
+
+function analyticsExportUrl(type) {
+  const qs = new URLSearchParams({ type });
+  if (ANALYTICS_RANGE.from) qs.set("from", ANALYTICS_RANGE.from);
+  if (ANALYTICS_RANGE.to) qs.set("to", ANALYTICS_RANGE.to);
+  return `/api/reports/export?${qs.toString()}`;
 }

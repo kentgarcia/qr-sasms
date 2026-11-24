@@ -459,6 +459,7 @@
         <div class="page-sub">All student visits — calendar and list views.</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button type="button" onclick="openWalkInModal()" class="btn-gold" style="padding:9px 15px;font-size:12px;"><i class="fa-solid fa-person-walking" style="margin-right:5px;"></i>Express Walk-In</button>
         <button id="adminApptViewCal" onclick="setAdminApptView('calendar')" class="btn-ghost" style="padding:9px 16px;font-size:12px;"><i class="fa-solid fa-calendar-days" style="margin-right:5px;"></i>Calendar</button>
         <button id="adminApptViewList" onclick="setAdminApptView('list')" class="btn-maroon" style="padding:9px 16px;font-size:12px;"><i class="fa-solid fa-list" style="margin-right:5px;"></i>List</button>
       </div>
@@ -500,9 +501,10 @@
         <div style="font-size:15px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-hourglass-half" style="color:#D4A017;margin-right:8px;"></i>Pending Approval</div>
         <div id="adminApptPendingMeta" style="font-size:11px;color:rgba(30,5,5,.58);"></div>
       </div>
+      <div id="adminApptPendingBatchBar" class="batch-bar" style="display:none;"></div>
       <div style="overflow-x:auto;">
         <table class="glass-table">
-          <thead><tr><th>Appointment</th><th>Student</th><th>Visit</th><th style="text-align:right;">Actions</th></tr></thead>
+          <thead><tr><th style="width:36px;"><input id="chkAllPendingAppts" type="checkbox" class="batch-chk" onchange="toggleBatchSelectAll('pendingAppts', this.checked)" aria-label="Select all pending appointments"></th><th>Appointment</th><th>Student</th><th>Visit</th><th style="text-align:right;">Actions</th></tr></thead>
           <tbody id="adminApptPendingTable"></tbody>
         </table>
       </div>
@@ -807,6 +809,16 @@
         <button type="button" onclick="submitManualQrScan()" class="btn-gold" style="padding:10px 18px;font-size:12px;"><i class="fa-solid fa-magnifying-glass" style="margin-right:6px;"></i>Verify Code</button>
       </div>
       <div id="scannerResultCard" style="display:none;margin-top:12px;"></div>
+    </div>
+
+    <div class="glass-card" style="padding:20px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+        <div>
+          <div style="font-size:14px;font-weight:800;color:#1a0505;"><i class="fa-solid fa-person-walking" style="color:#D4A017;margin-right:7px;"></i>Staff-Assisted Walk-In / Express Queue</div>
+          <div style="font-size:11px;color:rgba(30,5,5,.6);">Look up a student from the Masterlist or Directory and issue an immediate walk-in pass.</div>
+        </div>
+        <button type="button" onclick="openWalkInModal()" class="btn-gold" style="padding:8px 14px;font-size:12px;"><i class="fa-solid fa-plus" style="margin-right:5px;"></i>New Walk-In Pass</button>
+      </div>
     </div>
 
     <div class="glass-card" style="padding:20px;margin-bottom:16px;">

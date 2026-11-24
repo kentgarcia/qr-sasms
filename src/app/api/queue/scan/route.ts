@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, jsonError } from "@/lib/http";
 import { addAudit } from "@/lib/notify";
+import { propagateToLinked } from "@/lib/appointment-sync";
 import { parseAppointmentQrPayload } from "@/lib/signature";
 import {
   dateISOPHT,
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
         ? `${entry.code} checked in via QR scan by ${auth.name}.`
         : `${entry.code} (${serviceLabel(entry.serviceType)}) checked in via QR scan by ${auth.name}.`
     );
+    await propagateToLinked(entry, "Checked In", auth.name);
   }
 
   const masked = maskForManifest(finalEntry, auth.role, auth.studentId);

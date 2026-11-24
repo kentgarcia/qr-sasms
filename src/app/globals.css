@@ -656,3 +656,18 @@ details summary::-webkit-details-marker{display:none;}
 .sys-save-msg.ok{color:#15803d;font-weight:800;}
 .sys-save-msg.err{color:#991b1b;font-weight:800;}
 @media(max-width:640px){.sys-savebar{bottom:8px;}.sys-slider-row .sys-num{width:72px;}}
+
+/* ── CSAT Ratings, Batch Staff Actions, Walk-In & Date-Range Analytics ── */
+.csat-stars{display:inline-flex;gap:6px;align-items:center;}
+.csat-star{background:none;border:none;cursor:pointer;font-size:28px;color:rgba(30,5,5,.22);padding:2px;transition:transform .14s ease,color .14s ease;line-height:1;}
+.csat-star:hover,.csat-star.active{color:#F5C518;transform:scale(1.12);filter:drop-shadow(0 2px 6px rgba(212,160,23,.35));}
+.csat-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:#854d0e;background:rgba(245,197,24,.22);border:1px solid rgba(212,160,23,.45);border-radius:999px;padding:3px 9px;white-space:nowrap;}
+.csat-comment-card{background:rgba(255,255,255,.45);border:1px solid rgba(139,26,26,.10);border-radius:12px;padding:10px 12px;}
+.batch-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 18px;background:rgba(245,197,24,.14);border-bottom:1px solid rgba(212,160,23,.35);font-size:12px;font-weight:700;color:#3d1a00;}
+.batch-chk{width:16px;height:16px;accent-color:#8B1A1A;cursor:pointer;vertical-align:middle;}
+.walkin-results{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow-y:auto;margin-top:8px;}
+.walkin-match{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.55);border:1px solid rgba(139,26,26,.14);cursor:pointer;text-align:left;font-family:inherit;transition:background .15s,border-color .15s;}
+.walkin-match:hover{background:#fff;border-color:#8B1A1A;}
+.analytics-range-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;margin-bottom:16px;}
+.analytics-presets{display:flex;gap:6px;flex-wrap:wrap;}
+.export-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;}
