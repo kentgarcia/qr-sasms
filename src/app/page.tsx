@@ -17,7 +17,7 @@ export default function Home() {
     <>
       <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
       
-      <Script src="/app.js?v=20260930settings" strategy="afterInteractive" />
+      <Script src="/app.js?v=20261127analytics" strategy="afterInteractive" />
     </>
   );
 }

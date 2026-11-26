@@ -1,0 +1,500 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 284 244"
+  width="284"
+  height="244"
+  role="img"
+  aria-label="STARS Mascot Head Icon"
+  class="stars-mascot stars-mascot-head"
+  data-state="idle"
+>
+  <title>STARS Mascot Head Icon</title>
+  <defs>
+    <radialGradient id="mh-head-grad" cx="58%" cy="34%" r="64%" fx="60%" fy="30%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="56%" stop-color="#fcf8fb" />
+      <stop offset="82%" stop-color="#efe3ea" />
+      <stop offset="100%" stop-color="#dfcbd7" />
+    </radialGradient>
+
+    <linearGradient id="mh-head-rim" x1="0%" y1="30%" x2="55%" y2="80%">
+      <stop offset="0%" stop-color="#d5becb" stop-opacity="0.72" />
+      <stop offset="45%" stop-color="#e5d4de" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="mh-headband-grad" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#87102f" />
+      <stop offset="45%" stop-color="#690821" />
+      <stop offset="100%" stop-color="#480416" />
+    </linearGradient>
+
+    <linearGradient id="mh-cup-outer" x1="18%" y1="12%" x2="88%" y2="90%">
+      <stop offset="0%" stop-color="#a6133a" />
+      <stop offset="45%" stop-color="#840a29" />
+      <stop offset="100%" stop-color="#58041a" />
+    </linearGradient>
+
+    <linearGradient id="mh-cup-cushion" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#52051c" />
+      <stop offset="100%" stop-color="#2d0210" />
+    </linearGradient>
+
+    <linearGradient id="mh-cup-right" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#9e1136" />
+      <stop offset="55%" stop-color="#760824" />
+      <stop offset="100%" stop-color="#460315" />
+    </linearGradient>
+
+    <linearGradient id="mh-visor-grad" x1="25%" y1="0%" x2="75%" y2="100%">
+      <stop offset="0%" stop-color="#3c0820" />
+      <stop offset="50%" stop-color="#310619" />
+      <stop offset="100%" stop-color="#240413" />
+    </linearGradient>
+
+    <linearGradient id="mh-screen-glint" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="45%" stop-color="#ffdce9" stop-opacity="0.2" />
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0.26" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <clipPath id="mh-head-clip">
+      <path d="M 142 57 C 204 57 248 85 248 136 C 248 188 203 219 140 219 C 77 219 36 188 36 136 C 36 85 80 57 142 57 Z" />
+    </clipPath>
+
+    <clipPath id="mh-visor-clip">
+      <rect x="79" y="92" width="156" height="94" rx="38" ry="38" />
+    </clipPath>
+  </defs>
+
+  <style><![CDATA[
+    .stars-mascot-head {
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --ease-sine: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+      overflow: visible;
+    }
+
+    .mh-head-group,
+    .mh-eyes,
+    .mh-eye-left,
+    .mh-eye-right,
+    .mh-mouth,
+    .mh-screen-glint,
+    .mh-waves,
+    .mh-wave-1,
+    .mh-wave-2,
+    .mh-sparkles,
+    .mh-spark-1,
+    .mh-spark-2 {
+      transform-box: fill-box;
+      will-change: transform, opacity;
+    }
+
+    .mh-head-group {
+      transform-origin: 50% 72%;
+      transition: transform 220ms var(--ease-out);
+    }
+
+    .mh-eyes {
+      transform-origin: 50% 50%;
+      transition: transform 200ms var(--ease-out);
+    }
+
+    .mh-eye-left,
+    .mh-eye-right {
+      transform-origin: 50% 62%;
+    }
+
+    .mh-mouth {
+      transform-origin: 50% 35%;
+      transition: transform 180ms var(--ease-out);
+    }
+
+    .mh-waves,
+    .mh-sparkles,
+    .mh-screen-glint {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms var(--ease-out);
+    }
+
+    /* 1. IDLE (Default — works standalone in <img>) */
+    .stars-mascot-head .mh-head-group,
+    .stars-mascot-head[data-state="idle"] .mh-head-group {
+      animation: mh-idle-bob 3.6s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot-head .mh-eye-left,
+    .stars-mascot-head .mh-eye-right,
+    .stars-mascot-head[data-state="idle"] .mh-eye-left,
+    .stars-mascot-head[data-state="idle"] .mh-eye-right {
+      animation: mh-blink 4.8s var(--ease-out) infinite;
+    }
+
+    /* 2. GREETING */
+    .stars-mascot-head[data-state="greeting"] .mh-head-group {
+      animation: mh-greet-tilt 1.45s var(--ease-in-out) infinite;
+    }
+    .stars-mascot-head[data-state="greeting"] .mh-mouth {
+      animation: mh-happy-smile 1.45s var(--ease-out) infinite;
+    }
+    .stars-mascot-head[data-state="greeting"] .mh-sparkles {
+      opacity: 1;
+    }
+    .stars-mascot-head[data-state="greeting"] .mh-spark-1 {
+      animation: mh-spark-float 1.45s var(--ease-out) infinite;
+    }
+    .stars-mascot-head[data-state="greeting"] .mh-spark-2 {
+      animation: mh-spark-float 1.45s var(--ease-out) 0.25s infinite;
+    }
+
+    /* 3. LISTENING */
+    .stars-mascot-head[data-state="listening"] .mh-head-group {
+      animation: mh-listen-lean 2.1s var(--ease-sine) infinite;
+    }
+    .stars-mascot-head[data-state="listening"] .mh-waves {
+      opacity: 1;
+    }
+    .stars-mascot-head[data-state="listening"] .mh-wave-1 {
+      animation: mh-wave-pulse 1.4s var(--ease-out) 0s infinite;
+    }
+    .stars-mascot-head[data-state="listening"] .mh-wave-2 {
+      animation: mh-wave-pulse 1.4s var(--ease-out) 0.3s infinite;
+    }
+
+    /* 4. THINKING */
+    .stars-mascot-head[data-state="thinking"] .mh-head-group {
+      animation: mh-think-tilt 2.4s var(--ease-sine) infinite;
+    }
+    .stars-mascot-head[data-state="thinking"] .mh-eyes {
+      animation: mh-think-eyes 2.4s var(--ease-in-out) infinite;
+    }
+    .stars-mascot-head[data-state="thinking"] .mh-mouth {
+      transform: scale(0.76, 0.72) translateY(1px);
+    }
+
+    /* 5. TYPING */
+    .stars-mascot-head[data-state="typing"] .mh-head-group {
+      animation: mh-type-nod 0.52s var(--ease-sine) infinite;
+    }
+    .stars-mascot-head[data-state="typing"] .mh-screen-glint {
+      opacity: 1;
+      animation: mh-glint-sweep 1.6s var(--ease-in-out) infinite;
+    }
+
+    /* 6. TALKING */
+    .stars-mascot-head[data-state="talking"] .mh-head-group {
+      animation: mh-talk-nod 1.05s var(--ease-sine) infinite;
+    }
+    .stars-mascot-head[data-state="talking"] .mh-mouth {
+      animation: mh-talk-mouth 0.4s var(--ease-in-out) infinite;
+    }
+
+    /* 7. HAPPY */
+    .stars-mascot-head[data-state="happy"] .mh-head-group {
+      animation: mh-happy-hop 1.1s var(--ease-out) infinite;
+    }
+    .stars-mascot-head[data-state="happy"] .mh-eye-left,
+    .stars-mascot-head[data-state="happy"] .mh-eye-right {
+      animation: mh-happy-eyes 1.1s var(--ease-out) infinite;
+    }
+    .stars-mascot-head[data-state="happy"] .mh-mouth {
+      animation: mh-happy-smile 1.1s var(--ease-out) infinite;
+    }
+    .stars-mascot-head[data-state="happy"] .mh-sparkles {
+      opacity: 1;
+    }
+    .stars-mascot-head[data-state="happy"] .mh-spark-1 {
+      animation: mh-spark-float 1.1s var(--ease-out) infinite;
+    }
+    .stars-mascot-head[data-state="happy"] .mh-spark-2 {
+      animation: mh-spark-float 1.1s var(--ease-out) 0.2s infinite;
+    }
+
+    @keyframes mh-idle-bob {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-4px) rotate(1.2deg); }
+    }
+    @keyframes mh-blink {
+      0%, 44%, 49%, 93%, 98%, 100% { transform: scaleY(1); }
+      46.5%, 95.5% { transform: scaleY(0.12); }
+    }
+    @keyframes mh-greet-tilt {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      24% { transform: translateY(-5px) rotate(-6deg); }
+      54% { transform: translateY(-3px) rotate(5deg); }
+      80% { transform: translateY(-4px) rotate(-2deg); }
+    }
+    @keyframes mh-listen-lean {
+      0%, 100% { transform: translateY(-1px) rotate(-4.5deg); }
+      50% { transform: translateY(-3.5px) rotate(-6.5deg); }
+    }
+    @keyframes mh-wave-pulse {
+      0% { transform: translateX(0px) scale(0.92); opacity: 0; }
+      35% { opacity: 0.9; }
+      100% { transform: translateX(-7px) scale(1.08); opacity: 0; }
+    }
+    @keyframes mh-think-tilt {
+      0%, 100% { transform: translateY(0px) rotate(3.5deg); }
+      50% { transform: translateY(-4px) rotate(6.5deg); }
+    }
+    @keyframes mh-think-eyes {
+      0%, 100% { transform: translate(4px, -4px); }
+      50% { transform: translate(-3px, -5px); }
+    }
+    @keyframes mh-type-nod {
+      0%, 100% { transform: translateY(1px) rotate(2.5deg); }
+      50% { transform: translateY(3.5px) rotate(3.8deg); }
+    }
+    @keyframes mh-glint-sweep {
+      0% { transform: translateX(-110px); opacity: 0; }
+      30%, 70% { opacity: 0.9; }
+      100% { transform: translateX(110px); opacity: 0; }
+    }
+    @keyframes mh-talk-nod {
+      0%, 100% { transform: translateY(0px) rotate(-1.5deg); }
+      38% { transform: translateY(-4px) rotate(2deg); }
+      72% { transform: translateY(-1.5px) rotate(-2.5deg); }
+    }
+    @keyframes mh-talk-mouth {
+      0%, 100% { transform: scale(1, 0.82); }
+      35% { transform: scale(0.94, 1.24); }
+      68% { transform: scale(1.05, 0.92); }
+    }
+    @keyframes mh-happy-hop {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      35% { transform: translateY(-8px) rotate(-3.5deg); }
+      68% { transform: translateY(-1px) rotate(3.5deg); }
+    }
+    @keyframes mh-happy-eyes {
+      0%, 100% { transform: scale(1, 1); }
+      45% { transform: scale(1.08, 1.12) translateY(-1.5px); }
+    }
+    @keyframes mh-happy-smile {
+      0%, 100% { transform: scale(1, 1); }
+      45% { transform: scale(1.12, 1.14); }
+    }
+    @keyframes mh-spark-float {
+      0% { transform: translateY(3px) scale(0.9); opacity: 0; }
+      35% { opacity: 1; }
+      100% { transform: translateY(-9px) scale(1.06); opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stars-mascot-head * {
+        animation: none !important;
+        transition-duration: 120ms !important;
+      }
+    }
+  ]]></style>
+
+  <g class="mh-head-group">
+    <!-- Listening sound waves (hidden in idle) -->
+    <g class="mh-waves" fill="none" stroke="#8b0d2c" stroke-linecap="round">
+      <path class="mh-wave-1" d="M 10 124 C 3 135 3 149 10 160" stroke-width="3.6" />
+      <path class="mh-wave-2" d="M 2 116 C -6 132 -6 152 2 168" stroke-width="3" opacity="0.7" />
+    </g>
+
+    <!-- Right Headphone Earcup -->
+    <g>
+      <ellipse
+        cx="251"
+        cy="141"
+        rx="20"
+        ry="34"
+        transform="rotate(-3 251 141)"
+        fill="url(#mh-cup-right)"
+        stroke="#310311"
+        stroke-width="3.2"
+      />
+      <path
+        d="M 241 109 C 251 122 251 160 240 174"
+        fill="none"
+        stroke="#380313"
+        stroke-width="6.5"
+        stroke-linecap="round"
+      />
+      <path
+        d="M 258 120 C 264 131 264 149 258 160"
+        fill="none"
+        stroke="#c1244d"
+        stroke-width="2.4"
+        stroke-linecap="round"
+        opacity="0.55"
+      />
+    </g>
+
+    <!-- Headband Arch -->
+    <g>
+      <path
+        d="M 29 111
+           C 39 55 85 30 142 30
+           C 199 30 244 55 253 111
+           L 240 114
+           C 231 68 192 43 142 43
+           C 93 43 53 68 43 114 Z"
+        fill="url(#mh-headband-grad)"
+        stroke="#2f0310"
+        stroke-width="3"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M 66 63 C 90 43 120 35 148 35 C 180 35 208 46 227 67"
+        fill="none"
+        stroke="#b3244a"
+        stroke-width="2.3"
+        stroke-linecap="round"
+        opacity="0.48"
+      />
+    </g>
+
+    <!-- White Rounded Robot Head -->
+    <g>
+      <path
+        d="M 142 57
+           C 204 57 248 85 248 136
+           C 248 188 203 219 140 219
+           C 77 219 36 188 36 136
+           C 36 85 80 57 142 57 Z"
+        fill="url(#mh-head-grad)"
+      />
+      <g clip-path="url(#mh-head-clip)">
+        <path
+          d="M 30 52 L 96 52 C 62 100 60 172 120 210 C 152 222 196 216 242 194 L 242 226 L 30 226 Z"
+          fill="url(#mh-head-rim)"
+        />
+        <ellipse cx="150" cy="71" rx="52" ry="9" fill="#ffffff" opacity="0.65" />
+      </g>
+      <path
+        d="M 142 57
+           C 204 57 248 85 248 136
+           C 248 188 203 219 140 219
+           C 77 219 36 188 36 136
+           C 36 85 80 57 142 57 Z"
+        fill="none"
+        stroke="#3c2a31"
+        stroke-width="3.5"
+      />
+    </g>
+
+    <!-- Dark Plum Visor / Face Screen -->
+    <g>
+      <rect
+        x="79"
+        y="92"
+        width="156"
+        height="94"
+        rx="38"
+        ry="38"
+        fill="url(#mh-visor-grad)"
+        stroke="#260313"
+        stroke-width="2.6"
+      />
+      <rect
+        x="83"
+        y="96"
+        width="148"
+        height="86"
+        rx="34"
+        ry="34"
+        fill="none"
+        stroke="#591234"
+        stroke-width="1.5"
+        opacity="0.36"
+      />
+      <g clip-path="url(#mh-visor-clip)">
+        <polygon
+          class="mh-screen-glint"
+          points="99,84 139,84 104,196 64,196"
+          fill="url(#mh-screen-glint)"
+        />
+      </g>
+
+      <!-- Happy Eyes -->
+      <g class="mh-eyes">
+        <path
+          class="mh-eye-left"
+          d="M 110 139.5
+             C 109.5 126.5 116.5 119 125 119
+             C 133.5 119 140.2 126.5 139.5 139.5
+             C 139.1 143.4 134.5 144.2 133 140.4
+             C 131.2 134.6 128.5 131.8 125 131.8
+             C 121.5 131.8 118.6 134.6 116.8 140.4
+             C 115.4 144.2 110.5 143.4 110 139.5 Z"
+          fill="#fdf9fe"
+        />
+        <path
+          class="mh-eye-right"
+          d="M 179 139.5
+             C 178.5 126.5 185.5 119 194 119
+             C 202.5 119 209.2 126.5 208.5 139.5
+             C 208.1 143.4 203.5 144.2 202 140.4
+             C 200.2 134.6 197.5 131.8 194 131.8
+             C 190.5 131.8 187.6 134.6 185.8 140.4
+             C 184.4 144.2 179.5 143.4 179 139.5 Z"
+          fill="#fdf9fe"
+        />
+      </g>
+
+      <!-- Happy Crescent Smile -->
+      <path
+        class="mh-mouth"
+        d="M 144.5 152.5
+           C 151.5 156.4 167.5 156.4 174.5 152.5
+           C 177.4 150.9 180 153.6 178.3 157.3
+           C 174.8 165.2 167.8 169.5 159.5 169.5
+           C 151.2 169.5 144.2 165.2 140.7 157.3
+           C 139 153.6 141.6 150.9 144.5 152.5 Z"
+        fill="#fdf9fe"
+      />
+    </g>
+
+    <!-- Left Headphone Earcup -->
+    <g>
+      <ellipse
+        cx="42"
+        cy="140"
+        rx="18.5"
+        ry="35.5"
+        transform="rotate(-3 42 140)"
+        fill="url(#mh-cup-cushion)"
+        stroke="#27020e"
+        stroke-width="3"
+      />
+      <ellipse
+        cx="27"
+        cy="140.5"
+        rx="20.5"
+        ry="34.5"
+        transform="rotate(-3 27 140.5)"
+        fill="url(#mh-cup-outer)"
+        stroke="#2d0310"
+        stroke-width="3"
+      />
+      <ellipse
+        cx="19.5"
+        cy="141"
+        rx="7.2"
+        ry="15"
+        transform="rotate(-3 19.5 141)"
+        fill="#540319"
+      />
+      <path
+        d="M 29 113 C 36 121 39 135 38 151"
+        fill="none"
+        stroke="#c92954"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        opacity="0.54"
+      />
+    </g>
+
+    <!-- Greeting / Happy Sparkles (hidden in idle) -->
+    <g class="mh-sparkles">
+      <path class="mh-spark-1" d="M 262 34 L 265 43 L 274 46 L 265 49 L 262 58 L 259 49 L 250 46 L 259 43 Z" fill="#f5b82e" />
+      <path class="mh-spark-2" d="M 24 38 L 26.4 44.6 L 33 47 L 26.4 49.4 L 24 56 L 21.6 49.4 L 15 47 L 21.6 44.6 Z" fill="#9e1438" />
+    </g>
+  </g>
+</svg>

@@ -1,3 +1,4 @@
+import { autoVerifyFromMasterlist } from "@/lib/verification";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, jsonError } from "@/lib/http";
@@ -188,6 +189,7 @@ export async function POST(req: NextRequest) {
     data: ready.map(({ index: _i, status: _s, reason: _r, code: _c, ...data }) => data),
     skipDuplicates: true,
   });
+  await autoVerifyFromMasterlist().catch(() => 0);
   await addAudit(
     "INFO",
     `Masterlist bulk-add by ${auth.email} — ${ready.length} added, ${conflicts.length} skipped${body?.fileName ? ` from "${body.fileName}"` : ""}.`

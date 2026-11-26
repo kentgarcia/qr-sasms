@@ -5,7 +5,7 @@ import { validateStrongPassword } from "@/lib/password";
 import { addAudit, addNotification } from "@/lib/notify";
 import { normSN } from "@/lib/format";
 import { jsonError } from "@/lib/http";
-import { sendMail } from "@/lib/mailer";
+import { sendMail, isEmailConfigured, FALLBACK_OTP } from "@/lib/mailer";
 
 const DEFAULT_COURSES = ["BSCS", "BSIT", "BSBA", "BSA", "BEED"];
 
@@ -47,17 +47,13 @@ export async function POST(req: NextRequest) {
   }
 
   
-  const masterlistEntry = await prisma.masterlistEntry.findFirst({
-    where: { sn: normalizedSn },
-  });
-  if (!masterlistEntry) {
-    await addAudit("WARN", `Registration blocked — ${sn} not in masterlist.`);
-    return jsonError(
-      404,
-      `Student number "${sn}" was not found in the SSO masterlist. Only enrolled students on the official list can register. Double-check your student number or contact the SSO.`,
-      "NOT_IN_MASTERLIST"
-    );
+  // Registration is open to everyone with a valid student number format. Listed students are verified
+  // right away (and still go through approval); unlisted students get limited access until the SSO verifies them.
+  if (!/^\d{4}-\d{4,6}-[A-Za-z]{2}-\d$/.test(normalizedSn)) {
+    return jsonError(400, "Student number must look like 2024-00000-SP-0.", "INVALID_SN");
   }
+  const masterlistEntry = await prisma.masterlistEntry.findFirst({ where: { sn: normalizedSn }, select: { name: true } });
+  const listed = !!masterlistEntry;
 
   const existingBySn = await prisma.user.findFirst({
     where: { studentId: { equals: normalizedSn, mode: "insensitive" } },
@@ -73,7 +69,9 @@ export async function POST(req: NextRequest) {
     return jsonError(409, "That email is already registered. Please sign in instead.", "EMAIL_TAKEN");
   }
 
-  const otpRecord = await prisma.emailOtp.findFirst({
+  // With no SMTP configured the fixed test code is accepted (no email was really sent).
+  const usingFallbackOtp = !isEmailConfigured() && otp === FALLBACK_OTP;
+  const otpRecord = usingFallbackOtp ? null : await prisma.emailOtp.findFirst({
     where: {
       email: { equals: email, mode: "insensitive" },
       sn: normalizedSn,
@@ -83,18 +81,20 @@ export async function POST(req: NextRequest) {
     },
     orderBy: { createdAt: "desc" },
   });
-  if (!otpRecord) {
-    return jsonError(400, "Verification code has expired or was not requested. Please request a new OTP.", "INVALID_OTP");
+  if (!usingFallbackOtp) {
+    if (!otpRecord) {
+      return jsonError(400, "Verification code has expired or was not requested. Please request a new OTP.", "INVALID_OTP");
+    }
+    if (otpRecord.attempts >= 5) {
+      return jsonError(429, "Too many incorrect OTP attempts. Please request a new verification code.", "OTP_LOCKED");
+    }
+    const otpValid = await verifyPassword(otp, otpRecord.codeHash);
+    if (!otpValid) {
+      await prisma.emailOtp.update({ where: { id: otpRecord.id }, data: { attempts: { increment: 1 } } });
+      return jsonError(400, "Incorrect 6-digit verification code. Please check your email and try again.", "INVALID_OTP");
+    }
+    await prisma.emailOtp.update({ where: { id: otpRecord.id }, data: { usedAt: new Date() } });
   }
-  if (otpRecord.attempts >= 5) {
-    return jsonError(429, "Too many incorrect OTP attempts. Please request a new verification code.", "OTP_LOCKED");
-  }
-  const otpValid = await verifyPassword(otp, otpRecord.codeHash);
-  if (!otpValid) {
-    await prisma.emailOtp.update({ where: { id: otpRecord.id }, data: { attempts: { increment: 1 } } });
-    return jsonError(400, "Incorrect 6-digit verification code. Please check your email and try again.", "INVALID_OTP");
-  }
-  await prisma.emailOtp.update({ where: { id: otpRecord.id }, data: { usedAt: new Date() } });
 
   const passwordHash = await hashPassword(password);
   const name = `${first} ${last}`;
@@ -107,18 +107,25 @@ export async function POST(req: NextRequest) {
       name,
       course: course || null,
       year: year || null,
-      approved: false, // <-- Naka-false ulit para hihingi ng manual approval sa admin
+      approved: !listed ? true : false, // listed students wait for approval; unlisted ones sign in with limited access
+      verified: listed,
+      verifiedAt: listed ? new Date() : null,
+      verifiedBy: listed ? "Masterlist match" : null,
     },
   });
 
-  await addAudit("INFO", `New student account created — ${name} (${sn}).`);
-  await addNotification("admin", "Account Approval Needed", `${name} (${sn}) registered and is awaiting your approval.`);
+  await addAudit("INFO", `New student account created — ${name} (${sn})${listed ? "" : " — not on the masterlist, needs verification"}.`);
+  await addNotification("admin", listed ? "Account Approval Needed" : "Account Needs Verification", listed
+    ? `${name} (${sn}) registered and is awaiting your approval.`
+    : `${name} (${sn}) registered but is not on the masterlist. Please verify the student number.`);
   void (async () => {
     try {
       const mailResult = await sendMail({
         to: email,
         subject: "Account Registration Pending - STARS",
-        text: `Hello ${name}, your account has been successfully registered and is currently awaiting approval from the SSO Admin. We will notify you once it's approved.`,
+        text: listed
+          ? `Hello ${name}, your account has been successfully registered and is currently awaiting approval from the SSO Admin. We will notify you once it's approved.`
+          : `Hello ${name}, your account has been created. Your student number is not on our list yet, so the SSO will verify it first. You can sign in now and use the Help Desk; scheduling and requests open once you are verified.`,
       });
       await prisma.emailLog.create({
         data: {
@@ -131,5 +138,5 @@ export async function POST(req: NextRequest) {
       console.error("Failed to process registration email:", mailError);
     }
   })();
-  return NextResponse.json({ ok: true, id: account.id });
+  return NextResponse.json({ ok: true, id: account.id, verified: listed, approved: account.approved });
 }

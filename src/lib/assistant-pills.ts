@@ -48,7 +48,7 @@ const CATEGORY_PILLS: Array<{ match: RegExp; pills: AssistantPill[] }> = [
   {
     match: /appoint/i,
     pills: [
-      NAV("Book Appointment", "page-appointment-book"),
+      NAV("Schedule a Visit", "page-appointment-book"),
       NAV("My Appointments", "page-appointment", { filter: "upcoming" }),
       ASK("Offline QR Pass", "How do I get my offline appointment QR pass?"),
       ASK("SSO office hours", "What are the SSO office hours?"),
@@ -81,7 +81,7 @@ const CATEGORY_PILLS: Array<{ match: RegExp; pills: AssistantPill[] }> = [
   {
     match: /account|security|password|profile/i,
     pills: [
-      NAV("Account Settings", "page-account"),
+      NAV("My Profile", "page-account"),
       ASK("Password rules", "What are the password requirements for STARS accounts?"),
       { label: "Contact Support", action: { type: "ticket" } },
     ],
@@ -91,7 +91,7 @@ const CATEGORY_PILLS: Array<{ match: RegExp; pills: AssistantPill[] }> = [
     pills: [
       NAV("Book / Request", "page-appointment-book"),
       NAV("Student Bulletin", "page-bulletin"),
-      NAV("Forms & Downloads", "page-forms"),
+      NAV("Forms", "page-forms"),
       ASK("SSO office hours", "What are the SSO office hours?"),
     ],
   },
@@ -120,8 +120,8 @@ const LINK_PILL_LABELS: Record<string, string> = {
   "page-idapp": "ID Application",
   "page-bulletin": "Student Bulletin",
   "page-helpdesk": "Help Desk",
-  "page-forms": "Forms & Downloads",
-  "page-account": "Account Settings",
+  "page-forms": "Forms",
+  "page-account": "My Profile",
   "page-referral": "Referrals",
   "page-complaint": "Complaints",
 };

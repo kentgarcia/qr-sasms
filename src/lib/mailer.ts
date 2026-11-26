@@ -2,6 +2,9 @@ import nodemailer, { Transporter } from "nodemailer";
 
 let transporter: Transporter | null | undefined;
 
+/** Test-only fallback code, accepted ONLY while SMTP is not configured (so no real email can be sent). */
+export const FALLBACK_OTP = "842706";
+
 export function isEmailConfigured(): boolean {
   return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 }

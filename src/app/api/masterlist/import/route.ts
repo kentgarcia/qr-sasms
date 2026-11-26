@@ -1,3 +1,4 @@
+import { autoVerifyFromMasterlist } from "@/lib/verification";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, jsonError } from "@/lib/http";
@@ -71,5 +72,6 @@ export async function POST(req: NextRequest) {
       : `Masterlist imported — ${clean.length} students from "${body?.fileName || "upload"}".`
   );
 
+  await autoVerifyFromMasterlist().catch(() => 0);
   return NextResponse.json({ count: clean.length });
 }

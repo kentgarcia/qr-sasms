@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, jsonError } from "@/lib/http";
+import { requireSession, requireVerified, jsonError } from "@/lib/http";
 import { addAudit, addNotification } from "@/lib/notify";
 import {
   ACTIVE_STATUSES,
@@ -25,6 +25,8 @@ import {
   APPOINTMENT_SERVICES,
 } from "@/lib/appointments";
 
+import { archiveWhere } from "@/lib/archive";
+
 export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
 
@@ -36,7 +38,7 @@ export async function GET(req: NextRequest) {
       rows.map((r) => ({ ...serializeAppointment(r), reschedulesLeft: Math.max(0, settings.maxReschedules - (r.rescheduleCount || 0)), maxReschedules: settings.maxReschedules }));
     if (params.get("history")) {
       const rows = await prisma.queueEntry.findMany({
-        where: { studentId: auth.studentId || "" },
+        where: { studentId: auth.studentId || "", ...archiveWhere(req) },
         orderBy: { createdAt: "desc" },
         take: 50,
       });
@@ -95,7 +97,7 @@ export async function GET(req: NextRequest) {
 
   const auth = await requireSession(["admin"]);
   if (auth instanceof NextResponse) return auth;
-  const where: Record<string, unknown> = { status: { not: "CANCELLED" } };
+  const where: Record<string, unknown> = { status: { not: "CANCELLED" }, ...archiveWhere(req) };
   const fDate = params.get("date");
   const fService = (params.get("service") || "").toUpperCase();
   const fStatus = (params.get("status") || "").toUpperCase();
@@ -107,7 +109,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireSession(["student", "admin"]);
+  const auth = await requireVerified(["student", "admin"]);
   if (auth instanceof NextResponse) return auth;
 
   const body = await req.json().catch(() => ({}));

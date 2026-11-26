@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, jsonError } from "@/lib/http";
 import { allowRequest } from "@/lib/rate-limit";
+import { PRIVACY_REFUSAL, redactPii, screenMessage, scrubOutput } from "@/lib/assistant-privacy";
 import {
   ASSISTANT_FALLBACK_MESSAGE,
   UNSUPPORTED_PATTERN,
@@ -65,7 +66,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const message = (body?.message || "").toString().trim();
   if (!message) return jsonError(400, "Message is required.", "EMPTY_MESSAGE");
-  if (message.length > 2000) return jsonError(400, "Message is too long.", "MESSAGE_TOO_LONG");
+  if (message.length > 500) return jsonError(400, "Message is too long (500 characters max).", "MESSAGE_TOO_LONG");
+
+  // Per-student daily cap (on top of the per-IP burst limit above).
+  const daily = allowRequest(req, `assistant-chat-user:${auth.uid}`, 300, 86_400_000);
+  if (!daily.allowed) return jsonError(429, "You have reached today's question limit. Please try again tomorrow or use the Help Desk.", "DAILY_LIMIT");
 
   const requestedId = (body?.sessionId || "").toString();
   let session = null;
@@ -92,6 +97,34 @@ export async function POST(req: NextRequest) {
   // own recent messages. The original text is persisted; the pipeline
   // evaluates the resolved form. Bound refs still pass every safety rail
   // and the sn-scoped SIS path unchanged below.
+  // PRIVACY: refuse prompt-injection and requests for anyone else's data before
+  // any lookup runs. Scope is fixed server-side to the signed-in student.
+  const verdict = screenMessage(message, auth.studentId);
+  if (verdict !== "ok") {
+    try {
+      await prisma.auditLog.create({ data: { type: "WARN", msg: `ASSISTANT_BLOCKED:${verdict} user:${auth.uid}` } });
+    } catch {
+      // Telemetry must never break the answer.
+    }
+    const blocked: ChatResult = {
+      reply: PRIVACY_REFUSAL,
+      confidence: "high",
+      faqId: null,
+      faqQuestion: null,
+      clarification: null,
+      ticketDraft: null,
+      matchMode: "keyword",
+      degraded: false,
+      dataSource: null,
+      items: [],
+      intent: "privacy_refusal",
+      ruleId: "privacy-refusal",
+    };
+    return respond(req, auth, session, message, blocked, null, {
+      links: [{ label: "Open Help Desk", target: "page-helpdesk" }],
+    });
+  }
+
   const ctx = await buildContext(session?.id ?? null);
   const resolved = resolveWithContext(message, ctx);
   const eff = resolved.message;
@@ -324,13 +357,15 @@ type SessionRow = { id: string } | null;
 // them as answered/high); FAQ answers keep the existing `FAQ:<id>` shape.
 async function respond(
   _req: NextRequest,
-  auth: { uid: string; studentId?: string | null },
+  auth: { uid: string; studentId?: string | null; email?: string | null },
   session: SessionRow,
   message: string,
   final: ChatResult,
   faqs: Array<{ id: string; cat: string }> | null,
   overrides?: { links?: AssistantLink[]; pills?: AssistantPill[]; followUp?: ChatResult["followUp"] }
 ) {
+  final = { ...final, reply: scrubOutput(final.reply, auth.studentId, auth.email) };
+  const storedMessage = redactPii(message, auth.studentId);
   const links = overrides?.links ?? linksForChatResult(final, faqs);
   const basePills = overrides?.pills ?? pillsForReply(final, faqs);
   const pills = await enhancePills(basePills, final, auth.studentId || null);
@@ -341,13 +376,13 @@ async function respond(
       data: {
         userId: auth.uid,
         studentId: auth.studentId || "",
-        subject: message.slice(0, 80),
+        subject: storedMessage.slice(0, 80),
       },
     });
   }
   await prisma.chatMessage.createMany({
     data: [
-      { sessionId: session.id, role: "student", text: message },
+      { sessionId: session.id, role: "student", text: storedMessage },
       {
         sessionId: session.id,
         role: "assistant",

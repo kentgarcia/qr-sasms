@@ -85,6 +85,8 @@ model QueueEntry {
   @@index([status])
   @@index([serviceType, status])
   @@index([dateLabel, time, serviceType, status])
+  archivedAt DateTime?
+  @@index([archivedAt])
 }
 
 model ServiceSlotConfig {
@@ -159,6 +161,8 @@ model Referral {
   createdAt DateTime @default(now())
 
   @@index([sn])
+  archivedAt DateTime?
+  @@index([archivedAt])
 }
 
 model IdApplication {
@@ -184,6 +188,8 @@ model IdApplication {
 
   @@index([sn])
   @@index([status])
+  archivedAt DateTime?
+  @@index([archivedAt])
 }
 
 // Request-based + General Visit services (spec §§2,5).
@@ -218,6 +224,8 @@ model ServiceRequest {
 
   @@index([sn])
   @@index([service, status])
+  archivedAt DateTime?
+  @@index([archivedAt])
 }
 
 model Bulletin {
@@ -247,6 +255,8 @@ model Ticket {
   chatSession   ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
 
   @@index([sn])
+  archivedAt DateTime?
+  @@index([archivedAt])
 }
 
 // Phase 0 (AI assistant + ticket escalation spec, docs/ai-assistant-ticket-escalation-spec.md).
@@ -349,6 +359,8 @@ model EventRequest {
 
   @@index([sn])
   @@index([organizationId, date])
+  archivedAt DateTime?
+  @@index([archivedAt])
 }
 
 model UploadedFile {
@@ -403,6 +415,8 @@ model Complaint {
   createdAt       DateTime @default(now())
 
   @@index([sn])
+  archivedAt DateTime?
+  @@index([archivedAt])
 }
 
 model DownloadableForm {
@@ -435,6 +449,11 @@ model User {
   year             String?
   approved         Boolean   @default(true) 
   active           Boolean   @default(true) 
+  // Student identity check. Accounts matching the masterlist are verified on
+  // registration; others can sign in but cannot book until the SSO verifies them.
+  verified         Boolean   @default(true)
+  verifiedAt       DateTime?
+  verifiedBy       String?
   resetToken       String?   
   resetTokenExpiry DateTime? 
   createdAt        DateTime  @default(now())
@@ -494,4 +513,13 @@ model EmailOtp {
   createdAt DateTime  @default(now())
 
   @@index([email, purpose, createdAt])
+}
+
+model ComplaintCategory {
+  id          String   @id
+  name        String   @unique
+  description String   @default("")
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
 }

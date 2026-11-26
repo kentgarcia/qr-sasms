@@ -1,3 +1,4 @@
+import { autoVerifyFromMasterlist } from "@/lib/verification";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, jsonError } from "@/lib/http";
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
     },
   });
   await addAudit("INFO", `Masterlist entry ${sn} added by ${auth.email}.`);
+  await autoVerifyFromMasterlist(sn).catch(() => 0);
   return NextResponse.json(entry, { status: 201 });
 }
 export async function DELETE() {

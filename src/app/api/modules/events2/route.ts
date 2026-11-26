@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, jsonError } from "@/lib/http";
+import { requireSession, requireVerified, jsonError } from "@/lib/http";
+import { archiveWhere } from "@/lib/archive";
 import { addAudit, addNotification } from "@/lib/notify";
 import { genId, fnow, withTs, withTsList } from "@/lib/format";
 import {
@@ -9,17 +10,17 @@ import {
   withSlotLock,
 } from "@/lib/appointments";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireSession();
   if (auth instanceof NextResponse) return auth;
-  const where = auth.role === "admin" || auth.role === "super_admin" ? {} : { sn: auth.studentId || "" };
+  const where = { ...(auth.role === "admin" || auth.role === "super_admin" ? {} : { sn: auth.studentId || "" }), ...archiveWhere(req) };
   const rows = await prisma.eventRequest.findMany({ where, orderBy: { createdAt: "asc" } });
   return NextResponse.json(withTsList(rows));
 }
 
 
 export async function POST(req: NextRequest) {
-  const auth = await requireSession(["student"]);
+  const auth = await requireVerified(["student"]);
   if (auth instanceof NextResponse) return auth;
 
   const body = await req.json().catch(() => ({}));

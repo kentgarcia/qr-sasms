@@ -31,8 +31,8 @@ const IDAPP = { label: "Open ID Application", target: "page-idapp" } as RuleLink
 const BULLETIN = { label: "Student Bulletin", target: "page-bulletin" } as RuleLink;
 const REQUESTS = { label: "Book / Request", target: "page-appointment-book" } as RuleLink;
 const HELPDESK = { label: "Open Help Desk", target: "page-helpdesk" } as RuleLink;
-const FORMS = { label: "Forms & Downloads", target: "page-forms" } as RuleLink;
-const ACCOUNT = { label: "Account Settings", target: "page-account" } as RuleLink;
+const FORMS = { label: "Forms", target: "page-forms" } as RuleLink;
+const ACCOUNT = { label: "My Profile", target: "page-account" } as RuleLink;
 const REFERRAL = { label: "Open Referrals", target: "page-referral" } as RuleLink;
 const COMPLAINT = { label: "Open Complaints", target: "page-complaint" } as RuleLink;
 
@@ -61,10 +61,10 @@ export const TX_RULES: TxRule[] = [
     intent: "book_appointment",
     needs: ["appointment"],
     wants: ["appointment", "book", "schedule", "slot", "date", "time", "walkin", "generalvisit", "event", "referral", "hours", "tomorrow", "today", "week"],
-    phrases: ["book an appointment", "pa-book", "pabook", "walk in", "walk-in"],
+    phrases: ["book an appointment", "schedule a visit", "schedule visit", "pa-book", "pabook", "walk in", "walk-in"],
     reply:
-      "**How to book an appointment:**\n" +
-      "1. Open **Book / Request** and choose **General Visit**, **Event Consultation**, or **Psychological Intervention** (*ID, Authentication, and Excuse Slip are request-first*).\n" +
+      "**How to schedule a visit:**\n" +
+      "1. Open **Schedule a Visit** and choose **General Visit**, **Event Consultation**, or **Psychological Intervention** (*ID, Authentication, and Excuse Slip are request-first*).\n" +
       "2. Pick an open weekday (Monday–Friday, current or next month) and an available time slot.\n" +
       "3. Submit — bookings start as **Pending Approval**. Once SSO staff approve, status becomes **Confirmed** and you receive an email with your `APT-###` code and **offline QR pass**.\n\n" +
       "Good to know: Limit of 1 active booking per student per date. Office hours: Mon–Fri, 8:00 AM – 5:00 PM (PHT, closed on holidays).",
@@ -104,7 +104,7 @@ export const TX_RULES: TxRule[] = [
       "2. Enter a brief reason if prompted, then confirm.\n\n" +
       "Good to know: A **24-hour cutoff** applies before the scheduled slot. Cancelled `APT-###` codes are never reused — simply book a fresh slot whenever you're ready.",
     links: [APPT, REQUESTS],
-    followAsk: { label: "Book a new slot", prompt: "Where do I book an appointment?" },
+    followAsk: { label: "Schedule a visit", prompt: "Where do I book an appointment?" },
     ticketPill: false,
     examples: ["how do I cancel my appointment?", "kansela appointment ko"],
   },
@@ -135,7 +135,7 @@ export const TX_RULES: TxRule[] = [
     phrases: ["walk in", "walk-in", "book authentication", "direct"],
     reply:
       "**Authentication is a request-first service** (no direct slot booking):\n" +
-      "1. Open **Book / Request** and choose **Authentication**.\n" +
+      "1. Open **Schedule a Visit** and choose **Authentication**.\n" +
       "2. Enter your purpose, number of copies, and supporting details, then submit.\n" +
       "3. Track progress: `Pending Review → Approved → Ready for Pickup → Pickup Scheduled → Completed`.\n" +
       "4. When ready, SSO schedules your pickup with an `APT-###` **offline QR pass**.",
@@ -153,7 +153,7 @@ export const TX_RULES: TxRule[] = [
     phrases: ["walk in", "walk-in", "book excuse", "direct"],
     reply:
       "**Excuse Slip is a request-first service** (no direct slot booking):\n" +
-      "1. Open **Book / Request** and choose **Excuse Slip**.\n" +
+      "1. Open **Schedule a Visit** and choose **Excuse Slip**.\n" +
       "2. Enter your purpose, number of copies, and attach supporting documents (e.g. medical certificate).\n" +
       "3. Track progress: `Pending Review → Approved → Ready for Pickup → Pickup Scheduled → Completed`.\n" +
       "4. Once ready, SSO schedules your pickup with an `APT-###` **offline QR pass**.",
@@ -172,7 +172,7 @@ export const TX_RULES: TxRule[] = [
     phrases: ["how do i", "paano mag"],
     reply:
       "**How to request Document Authentication:**\n" +
-      "1. Open **Book / Request** and select **Authentication**.\n" +
+      "1. Open **Schedule a Visit** and select **Authentication**.\n" +
       "2. Enter your purpose and number of copies, then submit.\n" +
       "3. Track it under **My Appointments**: `Pending Review → Approved → Ready for Pickup → Pickup Scheduled → Completed`.\n" +
       "4. Once ready, the SSO schedules your pickup and emails your `APT-###` **offline QR pass**.",
@@ -190,7 +190,7 @@ export const TX_RULES: TxRule[] = [
     phrases: ["how do i", "paano mag"],
     reply:
       "**How to request an Excuse Slip:**\n" +
-      "1. Open **Book / Request** and select **Excuse Slip**.\n" +
+      "1. Open **Schedule a Visit** and select **Excuse Slip**.\n" +
       "2. Enter your reason/purpose, number of copies, and upload supporting proof (e.g. medical certificate).\n" +
       "3. Track it under **My Appointments**: `Pending Review → Approved → Ready for Pickup → Pickup Scheduled → Completed`.\n" +
       "4. Bring your supporting documents and **offline QR pass** when claiming at the SSO.",
@@ -208,7 +208,7 @@ export const TX_RULES: TxRule[] = [
     phrases: ["general visit"],
     reply:
       "**How to file a General Visit:**\n" +
-      "1. Open **Book / Request** and choose **General Visit**.\n" +
+      "1. Open **Schedule a Visit** and choose **General Visit**.\n" +
       "2. Enter your purpose and select an available weekday and time slot.\n" +
       "3. Track approval under **My Appointments** — once confirmed, your `APT-###` **offline QR pass** appears in your dashboard and confirmation email.",
     links: [REQUESTS, APPT],
@@ -278,7 +278,7 @@ export const TX_RULES: TxRule[] = [
     phrases: ["affidavit of loss", "lost id"],
     reply:
       "**How to apply for a Lost ID replacement (no payment required):**\n" +
-      "1. Download the **Affidavit of Loss** template from **Forms & Downloads** and have it signed.\n" +
+      "1. Download the **Affidavit of Loss** template from **Forms** and have it signed.\n" +
       "2. Open **ID Application**, choose **Lost**, and upload your OR receipt + signed Affidavit of Loss.\n" +
       "3. Track it: `Pending → OR Verified → Approved → Processing → Ready for Claiming`.\n" +
       "4. When ready, SSO schedules your pickup with an `APT-###` **offline QR pass**. Bring 1 valid ID when claiming.",
@@ -419,7 +419,7 @@ export const TX_RULES: TxRule[] = [
     phrases: ["downloadable forms", "affidavit template", "forms"],
     reply:
       "To get official templates:\n" +
-      "1. Open Forms & Downloads and find what you need — e.g. the Affidavit of Loss template or the Event Clearance Checklist.\n" +
+      "1. Open Forms and find what you need — e.g. the Affidavit of Loss template or the Event Clearance Checklist.\n" +
       "2. Download it, fill it out, and upload the signed copy where asked (OR receipt and affidavit go in the ID Application module).",
     links: [FORMS],
     followAsk: null,
@@ -455,7 +455,7 @@ export const TX_RULES: TxRule[] = [
     reply:
       "**How to reset or change your password:**\n" +
       "1. **Signed out:** Click **Forgot Password** on the sign-in page, enter your email, and open the reset link sent to you.\n" +
-      "2. **Signed in:** Open **Account Settings → Change Password**.\n" +
+      "2. **Signed in:** Open **My Profile → Change Password**.\n" +
       "3. Your new password must be **more than 8 characters (9+)** with uppercase, lowercase, a number, and a special character (e.g. `!@#$%`).",
     links: [ACCOUNT],
     followAsk: { label: "Password requirements", prompt: "What are the strong password requirements?" },
@@ -488,7 +488,7 @@ export const TX_RULES: TxRule[] = [
     phrases: ["profile change", "update profile"],
     reply:
       "**How to update your profile (name, email, course, year):**\n" +
-      "1. Open **Account Settings** and submit a **Profile Change** request.\n" +
+      "1. Open **My Profile** and submit a **Profile Change** request.\n" +
       "2. SSO staff verify the update before it takes effect.\n" +
       "3. You'll receive an in-app notification once it is approved.",
     links: [ACCOUNT],

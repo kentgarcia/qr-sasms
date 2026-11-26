@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireSession, jsonError } from "@/lib/http";
+import { requireSession, requireVerified, jsonError, parseIntStrict } from "@/lib/http";
+import { archiveWhere } from "@/lib/archive";
 import { addAudit, addNotification } from "@/lib/notify";
 import { genId, fnow, withTs, withTsList } from "@/lib/format";
 import {
@@ -37,12 +38,13 @@ export async function GET(req: NextRequest) {
     where.sn = auth.studentId || "";
   }
   if (service) where.service = service;
+  Object.assign(where, archiveWhere(req));
   const rows = await prisma.serviceRequest.findMany({ where, orderBy: { createdAt: "asc" } });
   return NextResponse.json(withTsList(rows));
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireSession(["student"]);
+  const auth = await requireVerified(["student"]);
   if (auth instanceof NextResponse) return auth;
 
   const body = await req.json().catch(() => ({}));
@@ -53,7 +55,10 @@ export async function POST(req: NextRequest) {
   const def = SERVICE_REQUEST_SERVICES[service];
   const subject = (body?.subject || body?.purpose || "").toString().trim().slice(0, 200);
   const details = (body?.details || body?.reason || "").toString().trim().slice(0, 2000);
-  const copies = Math.max(1, Math.min(10, parseInt(body?.copies, 10) || 1));
+  // Copies: whole numbers 1-10 only. Omitted means 1; anything else invalid is rejected, not coerced.
+  const copiesParsed = body?.copies === undefined || body?.copies === "" ? 1 : parseIntStrict(body.copies, { min: 1, max: 10, field: "Copies", code: "INVALID_COPIES" });
+  if (copiesParsed instanceof NextResponse) return copiesParsed;
+  const copies = copiesParsed;
   const docName = (body?.docName || "").toString();
   const docUrl = (body?.docUrl || "").toString() || null;
 

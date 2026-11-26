@@ -26,6 +26,47 @@ export async function requireSession(
 }
 
 
+/**
+ * Like requireSession, but students must also be verified (identity confirmed by the SSO).
+ * Staff roles pass through unchanged.
+ */
+export async function requireVerified(
+  roles?: Array<SessionPayload["role"]>
+): Promise<SessionPayload | NextResponse> {
+  const auth = await requireSession(roles);
+  if (auth instanceof NextResponse || auth.role !== "student") return auth;
+  let user = await prisma.user.findUnique({ where: { id: auth.uid }, select: { verified: true, studentId: true } });
+  if (user && !user.verified && user.studentId) {
+    const { autoVerifyFromMasterlist } = await import("./verification");
+    if (await autoVerifyFromMasterlist(user.studentId)) user = { ...user, verified: true };
+  }
+  if (!user?.verified) {
+    return jsonError(403, "Your student account is still being verified by the SSO. You can use the Help Desk meanwhile.", "NOT_VERIFIED");
+  }
+  return auth;
+}
+
 export function ok<T>(data: T, init?: number) {
   return NextResponse.json(data, { status: init ?? 200 });
+}
+
+
+/**
+ * Strict integer parsing. Accepts a JS integer, or a string of plain digits
+ * (optionally signed). Rejects floats, exponents, blanks, NaN, null, arrays, objects.
+ * Returns the number, or a ready-to-return 400 NextResponse.
+ */
+export function parseIntStrict(
+  value: unknown,
+  opts: { min: number; max: number; field: string; code?: string }
+): number | NextResponse {
+  const { min, max, field } = opts;
+  const code = opts.code || "INVALID_NUMBER";
+  let n: number | null = null;
+  if (typeof value === "number" && Number.isInteger(value)) n = value;
+  else if (typeof value === "string" && /^[+-]?\d{1,9}$/.test(value.trim())) n = parseInt(value.trim(), 10);
+  if (n === null || n < min || n > max) {
+    return jsonError(400, `${field} must be a whole number from ${min} to ${max}.`, code);
+  }
+  return n;
 }

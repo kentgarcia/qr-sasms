@@ -34,14 +34,8 @@ export async function POST(req: NextRequest) {
     return jsonError(400, "Please enter a valid email address (e.g. Gmail or PUP email).", "INVALID_EMAIL");
   }
 
-  const masterlistEntry = await prisma.masterlistEntry.findFirst({ where: { sn } });
-  if (!masterlistEntry) {
-    return jsonError(
-      404,
-      `Student number "${sn}" was not found in the SSO masterlist. Only enrolled students can register.`,
-      "NOT_IN_MASTERLIST"
-    );
-  }
+  // Students who are not on the masterlist yet may still register; the SSO verifies them afterwards.
+  const masterlistEntry = await prisma.masterlistEntry.findFirst({ where: { sn }, select: { name: true } });
 
   const existingBySn = await prisma.user.findFirst({
     where: { studentId: { equals: sn, mode: "insensitive" } },
@@ -85,7 +79,7 @@ export async function POST(req: NextRequest) {
   await prisma.emailLog.create({
     data: {
       to: email,
-      name: masterlistEntry.name || sn,
+      name: masterlistEntry?.name || sn,
       ref: `OTP-${sn}`,
       doc: "Registration OTP",
       status: mailResult.ok ? "Success" : "Failed",
@@ -95,11 +89,9 @@ export async function POST(req: NextRequest) {
   });
   await addAudit("INFO", `Registration OTP issued for ${sn} (${email}) via ${mailResult.mode}.`);
 
-  const devMode = mailResult.mode === "SIMULATED" && process.env.NODE_ENV !== "production";
   return NextResponse.json({
     ok: true,
     expiresInSec: Math.floor(OTP_TTL_MS / 1000),
     mode: mailResult.mode,
-    ...(devMode ? { devOtp: code } : {}),
   });
 }

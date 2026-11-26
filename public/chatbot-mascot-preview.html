@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STARS Chatbot Mascot — Animation Preview</title>
+  <style>
+    :root {
+      --maroon: #7b0924;
+      --maroon-deep: #3a0616;
+      --gold: #d49417;
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+      color: #240710;
+      background:
+        radial-gradient(ellipse 80% 65% at 0% 0%, rgba(210, 145, 145, 0.65) 0%, transparent 58%),
+        radial-gradient(ellipse 70% 75% at 100% 100%, rgba(230, 195, 120, 0.48) 0%, transparent 55%),
+        linear-gradient(150deg, #f2dada 0%, #faf0df 48%, #f4e1ea 100%);
+      padding: 32px 20px 48px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 960px;
+      display: grid;
+      gap: 20px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.68);
+      backdrop-filter: blur(22px) saturate(180%);
+      -webkit-backdrop-filter: blur(22px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.85);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 0 18px 40px rgba(74, 8, 25, 0.08);
+    }
+
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--maroon-deep);
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: rgba(36, 7, 16, 0.66);
+      margin-top: 3px;
+    }
+
+    .badge {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--maroon);
+      background: rgba(123, 9, 36, 0.09);
+      border: 1px solid rgba(123, 9, 36, 0.16);
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 1.1fr) minmax(280px, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 760px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .stage {
+      min-height: 360px;
+      border-radius: 18px;
+      background: #faf8fb;
+      border: 1px solid rgba(74, 8, 25, 0.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+      transition: background-color 220ms var(--ease-out), color 220ms var(--ease-out);
+    }
+
+    .stage.is-dark {
+      background: #230610;
+      color: #fdf5f8;
+    }
+
+    .stage-mascot {
+      width: min(290px, 100%);
+      height: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stage-mascot svg {
+      width: 100%;
+      height: auto;
+    }
+
+    .stage-caption {
+      margin-top: 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      opacity: 0.72;
+      text-align: center;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(58, 6, 22, 0.56);
+      margin-bottom: 8px;
+    }
+
+    .state-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .state-btn {
+      appearance: none;
+      border: 1px solid rgba(123, 9, 36, 0.16);
+      background: rgba(255, 255, 255, 0.85);
+      color: #2e0713;
+      border-radius: 12px;
+      padding: 10px 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: transform 140ms var(--ease-out), background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+    }
+
+    .state-btn strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .state-btn span {
+      display: block;
+      font-size: 11px;
+      opacity: 0.68;
+      margin-top: 2px;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .state-btn:hover {
+        border-color: rgba(123, 9, 36, 0.42);
+        transform: translateY(-1px);
+      }
+    }
+
+    .state-btn:active {
+      transform: scale(0.98);
+    }
+
+    .state-btn.is-active {
+      background: var(--maroon);
+      border-color: var(--maroon);
+      color: #ffffff;
+    }
+
+    .state-btn.is-active span {
+      opacity: 0.86;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pill-btn {
+      border: 1px solid rgba(123, 9, 36, 0.2);
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--maroon-deep);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 7px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background-color 160ms ease, transform 140ms var(--ease-out);
+    }
+
+    .pill-btn:active {
+      transform: scale(0.97);
+    }
+
+    .sizes {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 20px;
+      padding-top: 4px;
+    }
+
+    .size-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(36, 7, 16, 0.68);
+    }
+
+    .launcher-demo {
+      width: 64px;
+      height: 64px;
+      border-radius: 999px;
+      background: #ffffff;
+      border: 2px solid rgba(123, 9, 36, 0.18);
+      box-shadow: 0 10px 24px rgba(123, 9, 36, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+    }
+
+    .avatar-demo {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background: #ffffff;
+      border: 1px solid rgba(123, 9, 36, 0.14);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+    }
+
+    pre {
+      background: #230610;
+      color: #fdecf2;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      padding: 14px 16px;
+      border-radius: 14px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="card header">
+      <div>
+        <h1 class="title">STARS Chatbot Mascot Preview</h1>
+        <p class="subtitle">Single source of truth: <code>/chatbot-mascot.svg</code> — idle works standalone in <code>&lt;img&gt;</code>; switch states via <code>data-state</code> when inline.</p>
+      </div>
+      <span class="badge" id="stateBadge">data-state="idle"</span>
+    </section>
+
+    <section class="grid">
+      <div class="card stage" id="stage">
+        <div class="stage-mascot" id="inlineHost">Loading mascot SVG…</div>
+        <p class="stage-caption" id="stateCaption">Gentle breathing, natural eye blink, chest flame shimmer, and laptop star pulse.</p>
+      </div>
+
+      <div class="card controls">
+        <div>
+          <div class="section-label">Animation States</div>
+          <div class="state-grid" id="stateButtons">
+            <button type="button" class="state-btn is-active" data-state="idle" data-desc="Gentle breathing, natural eye blink, chest flame shimmer, and laptop star pulse.">
+              <strong>Idle</strong>
+              <span>Default standby</span>
+            </button>
+            <button type="button" class="state-btn" data-state="greeting" data-desc="Welcoming bounce, friendly head tilt, and subtle sparkles when chat opens.">
+              <strong>Greeting</strong>
+              <span>Chat opens / Hi!</span>
+            </button>
+            <button type="button" class="state-btn" data-state="listening" data-desc="Attentive head lean with headphone sound-wave pulses while user types.">
+              <strong>Listening</strong>
+              <span>User typing / voice</span>
+            </button>
+            <button type="button" class="state-btn" data-state="thinking" data-desc="Upward head tilt, glancing eyes, pulsing star, and floating thinking dots.">
+              <strong>Thinking</strong>
+              <span>Waiting for reply</span>
+            </button>
+            <button type="button" class="state-btn" data-state="typing" data-desc="Leaning toward laptop with typing cadence and soft visor screen glint.">
+              <strong>Typing</strong>
+              <span>Drafting / streaming</span>
+            </button>
+            <button type="button" class="state-btn" data-state="talking" data-desc="Animated happy speech mouth rhythm with lively micro-head nods.">
+              <strong>Talking</strong>
+              <span>Delivering answer</span>
+            </button>
+            <button type="button" class="state-btn" data-state="happy" data-desc="Joyful celebration hop, beaming eyes, glowing star, and rising sparkles.">
+              <strong>Happy</strong>
+              <span>Booking / QR success</span>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-label">Stage Controls</div>
+          <div class="toolbar">
+            <button type="button" class="pill-btn" id="toggleBg">Toggle Dark Background</button>
+            <button type="button" class="pill-btn" id="cycleDemo">Auto-Cycle States</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-label">Head-Only Icon vs Full-Body Mascot</div>
+          <div class="sizes">
+            <div class="size-item">
+              <div class="launcher-demo">
+                <img src="/chatbot-mascot-head.svg" alt="Head icon launcher preview" width="48" height="42" />
+              </div>
+              <span>Head Icon (Launcher)</span>
+            </div>
+            <div class="size-item">
+              <div class="avatar-demo">
+                <img src="/chatbot-mascot-head.svg" alt="Head icon avatar preview" width="34" height="30" />
+              </div>
+              <span>Head Icon (Avatar)</span>
+            </div>
+            <div class="size-item">
+              <img src="/chatbot-mascot.svg" alt="Full body card preview" width="108" height="100" />
+              <span>Full Body (Showcase)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-label">Integration Snippet (Ready for Later)</div>
+      <pre><code>&lt;!-- 1. Drop-in idle mascot anywhere --&gt;
+&lt;img src="/chatbot-mascot.svg" alt="STARS Assistant" width="56" height="52" /&gt;
+
+&lt;!-- 2. Inline SVG for stateful chatbot animations --&gt;
+&lt;script&gt;
+  // After injecting /chatbot-mascot.svg inline into a container:
+  const mascot = document.querySelector(".stars-mascot");
+  mascot.dataset.state = "thinking"; // idle | greeting | listening | thinking | typing | talking | happy
+&lt;/script&gt;</code></pre>
+    </section>
+  </main>
+
+  <script>
+    const host = document.getElementById("inlineHost");
+    const badge = document.getElementById("stateBadge");
+    const caption = document.getElementById("stateCaption");
+    const stage = document.getElementById("stage");
+    const buttons = Array.from(document.querySelectorAll(".state-btn"));
+    let mascotSvg = null;
+    let cycleTimer = null;
+
+    function setState(stateName) {
+      if (mascotSvg) mascotSvg.dataset.state = stateName;
+      badge.textContent = 'data-state="' + stateName + '"';
+      buttons.forEach((btn) => {
+        const active = btn.dataset.state === stateName;
+        btn.classList.toggle("is-active", active);
+        if (active) caption.textContent = btn.dataset.desc;
+      });
+    }
+
+    fetch("/chatbot-mascot.svg")
+      .then((res) => res.text())
+      .then((svgMarkup) => {
+        host.innerHTML = svgMarkup;
+        mascotSvg = host.querySelector("svg");
+        setState("idle");
+      })
+      .catch(() => {
+        host.innerHTML = '<img src="/chatbot-mascot.svg" alt="STARS Chatbot Mascot" style="width:100%;height:auto;" />';
+      });
+
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (cycleTimer) {
+          clearInterval(cycleTimer);
+          cycleTimer = null;
+          document.getElementById("cycleDemo").textContent = "Auto-Cycle States";
+        }
+        setState(btn.dataset.state);
+      });
+    });
+
+    document.getElementById("toggleBg").addEventListener("click", () => {
+      stage.classList.toggle("is-dark");
+    });
+
+    document.getElementById("cycleDemo").addEventListener("click", (e) => {
+      if (cycleTimer) {
+        clearInterval(cycleTimer);
+        cycleTimer = null;
+        e.currentTarget.textContent = "Auto-Cycle States";
+        return;
+      }
+      const order = buttons.map((b) => b.dataset.state);
+      let idx = 0;
+      e.currentTarget.textContent = "Stop Auto-Cycle";
+      cycleTimer = setInterval(() => {
+        idx = (idx + 1) % order.length;
+        setState(order[idx]);
+      }, 2400);
+    });
+  </script>
+</body>
+</html>

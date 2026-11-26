@@ -22,18 +22,20 @@ function parseDateBounds(fromParam: string | null, toParam: string | null) {
 async function resolveServiceMap(requestIds: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   if (!requestIds.length) return map;
-  const [appts, reqs, idapps, evts, refs] = await Promise.all([
+  const [appts, reqs, idapps, evts, refs, tickets] = await Promise.all([
     prisma.queueEntry.findMany({ where: { code: { in: requestIds } }, select: { code: true, serviceType: true } }),
     prisma.serviceRequest.findMany({ where: { id: { in: requestIds } }, select: { id: true, service: true } }),
     prisma.idApplication.findMany({ where: { id: { in: requestIds } }, select: { id: true, type: true } }),
     prisma.eventRequest.findMany({ where: { id: { in: requestIds } }, select: { id: true } }),
     prisma.referral.findMany({ where: { id: { in: requestIds } }, select: { id: true } }),
+    prisma.ticket.findMany({ where: { id: { in: requestIds } }, select: { id: true, category: true } }),
   ]);
   for (const a of appts) map.set(a.code, serviceLabel(a.serviceType));
   for (const r of reqs) map.set(r.id, requestServiceLabel(r.service));
   for (const i of idapps) map.set(i.id, i.type || "ID Application");
   for (const e of evts) map.set(e.id, "Event Request");
   for (const r of refs) map.set(r.id, "Referral & Intervention");
+  for (const t of tickets) map.set(t.id, t.category ? `Help Desk · ${t.category}` : "Help Desk Ticket");
   return map;
 }
 
@@ -134,13 +136,14 @@ export async function POST(req: NextRequest) {
   const sn = auth.studentId || "";
   if (!sn) return jsonError(403, "Student number not found on session.", "FORBIDDEN");
 
-  // Verify ownership and completed status across all student transaction types.
-  const [appt, sreq, idapp, evt, ref] = await Promise.all([
+  // Verify ownership and completed/closed status across all student transaction types.
+  const [appt, sreq, idapp, evt, ref, ticket] = await Promise.all([
     prisma.queueEntry.findUnique({ where: { code: requestId }, select: { studentId: true, status: true, served: true, serviceType: true } }),
     prisma.serviceRequest.findUnique({ where: { id: requestId }, select: { sn: true, status: true, service: true } }),
     prisma.idApplication.findUnique({ where: { id: requestId }, select: { sn: true, status: true, type: true } }),
     prisma.eventRequest.findUnique({ where: { id: requestId }, select: { sn: true, status: true } }),
     prisma.referral.findUnique({ where: { id: requestId }, select: { sn: true, status: true } }),
+    prisma.ticket.findUnique({ where: { id: requestId }, select: { sn: true, status: true, category: true } }),
   ]);
 
   let eligible = false;
@@ -167,6 +170,10 @@ export async function POST(req: NextRequest) {
     ownerMatch = ref.sn.toUpperCase() === sn.toUpperCase();
     eligible = ownerMatch && /^(completed|resolved)$/i.test(ref.status);
     label = "Referral & Intervention";
+  } else if (ticket) {
+    ownerMatch = ticket.sn.toUpperCase() === sn.toUpperCase();
+    eligible = ownerMatch && /^closed$/i.test(ticket.status);
+    label = ticket.category ? `Help Desk · ${ticket.category}` : "Help Desk Ticket";
   } else {
     return jsonError(404, "Transaction not found.", "NOT_FOUND");
   }
@@ -175,7 +182,7 @@ export async function POST(req: NextRequest) {
     return jsonError(403, "You can only rate your own completed transactions.", "FORBIDDEN");
   }
   if (!eligible) {
-    return jsonError(409, "Feedback can only be submitted after the visit or request is completed.", "NOT_COMPLETED");
+    return jsonError(409, "Feedback can only be submitted after the visit, request, or ticket is completed.", "NOT_COMPLETED");
   }
 
   const existing = await prisma.serviceFeedback.findUnique({ where: { requestId } });

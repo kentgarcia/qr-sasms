@@ -4,6 +4,7 @@ const nextConfig = {
   
   
   experimental: {
+    instrumentationHook: true,
     serverActions: {
       bodySizeLimit: '5mb',
     },

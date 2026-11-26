@@ -1,0 +1,1205 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 420 390"
+  width="420"
+  height="390"
+  role="img"
+  aria-label="STARS Chatbot Mascot"
+  class="stars-mascot"
+  data-state="idle"
+>
+  <title>STARS Chatbot Mascot</title>
+  <defs>
+    <!-- Head & Body White-to-Blush Shading -->
+    <radialGradient id="mascot-head-grad" cx="58%" cy="34%" r="64%" fx="60%" fy="30%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="56%" stop-color="#fcf8fb" />
+      <stop offset="82%" stop-color="#efe3ea" />
+      <stop offset="100%" stop-color="#dfcbd7" />
+    </radialGradient>
+
+    <radialGradient id="mascot-body-grad" cx="62%" cy="32%" r="68%" fx="64%" fy="28%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="52%" stop-color="#faf5f8" />
+      <stop offset="82%" stop-color="#eadbe4" />
+      <stop offset="100%" stop-color="#d7c0ce" />
+    </radialGradient>
+
+    <!-- Soft left rim shadow clip gradients -->
+    <linearGradient id="mascot-head-rim" x1="0%" y1="30%" x2="55%" y2="80%">
+      <stop offset="0%" stop-color="#d5becb" stop-opacity="0.72" />
+      <stop offset="45%" stop-color="#e5d4de" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="mascot-body-rim" x1="0%" y1="35%" x2="48%" y2="65%">
+      <stop offset="0%" stop-color="#d4bccb" stop-opacity="0.78" />
+      <stop offset="55%" stop-color="#e6d6e0" stop-opacity="0.24" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Headband & Earcups Maroon Gradients -->
+    <linearGradient id="mascot-headband-grad" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#87102f" />
+      <stop offset="45%" stop-color="#690821" />
+      <stop offset="100%" stop-color="#480416" />
+    </linearGradient>
+
+    <linearGradient id="mascot-cup-outer" x1="18%" y1="12%" x2="88%" y2="90%">
+      <stop offset="0%" stop-color="#a6133a" />
+      <stop offset="45%" stop-color="#840a29" />
+      <stop offset="100%" stop-color="#58041a" />
+    </linearGradient>
+
+    <linearGradient id="mascot-cup-cushion" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#52051c" />
+      <stop offset="100%" stop-color="#2d0210" />
+    </linearGradient>
+
+    <linearGradient id="mascot-cup-right" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#9e1136" />
+      <stop offset="55%" stop-color="#760824" />
+      <stop offset="100%" stop-color="#460315" />
+    </linearGradient>
+
+    <!-- Visor Dark Plum Screen -->
+    <linearGradient id="mascot-visor-grad" x1="25%" y1="0%" x2="75%" y2="100%">
+      <stop offset="0%" stop-color="#3c0820" />
+      <stop offset="50%" stop-color="#310619" />
+      <stop offset="100%" stop-color="#240413" />
+    </linearGradient>
+
+    <!-- Subtle screen glow for typing / talking states -->
+    <linearGradient id="mascot-screen-glint" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="45%" stop-color="#ffdce9" stop-opacity="0.18" />
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0.24" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Neck Collar -->
+    <linearGradient id="mascot-neck-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3f0516" />
+      <stop offset="55%" stop-color="#5c0a20" />
+      <stop offset="100%" stop-color="#400617" />
+    </linearGradient>
+
+    <!-- Chest Star & Flame Center -->
+    <linearGradient id="mascot-chest-star-grad" x1="25%" y1="0%" x2="75%" y2="100%">
+      <stop offset="0%" stop-color="#a81324" />
+      <stop offset="55%" stop-color="#860c1a" />
+      <stop offset="100%" stop-color="#5d0611" />
+    </linearGradient>
+
+    <radialGradient id="mascot-flame-grad" cx="50%" cy="62%" r="55%">
+      <stop offset="0%" stop-color="#fff0a6" />
+      <stop offset="45%" stop-color="#ffb84d" />
+      <stop offset="100%" stop-color="#e3562a" />
+    </radialGradient>
+
+    <!-- Laptop Lid & Base -->
+    <linearGradient id="mascot-laptop-lid" x1="12%" y1="8%" x2="88%" y2="95%">
+      <stop offset="0%" stop-color="#8a0929" />
+      <stop offset="50%" stop-color="#760622" />
+      <stop offset="100%" stop-color="#5a041a" />
+    </linearGradient>
+
+    <linearGradient id="mascot-laptop-base" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6a0821" />
+      <stop offset="55%" stop-color="#510519" />
+      <stop offset="100%" stop-color="#390312" />
+    </linearGradient>
+
+    <linearGradient id="mascot-body-right-shadow" x1="0%" y1="45%" x2="100%" y2="55%">
+      <stop offset="0%" stop-color="#cfb6c4" stop-opacity="0" />
+      <stop offset="55%" stop-color="#cfb6c4" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#c3a4b6" stop-opacity="0.46" />
+    </linearGradient>
+
+    <clipPath id="mascot-head-clip">
+      <path d="M 178 93 C 240 93 284 121 284 172 C 284 224 239 255 176 255 C 113 255 72 224 72 172 C 72 121 116 93 178 93 Z" />
+    </clipPath>
+
+    <clipPath id="mascot-body-clip">
+      <path d="M 140 258 C 110 264 98 298 98 334 C 98 353 105 370 118 371 L 234 371 C 244 370 248 353 248 334 C 248 298 236 264 212 258 Z" />
+    </clipPath>
+
+    <clipPath id="mascot-visor-clip">
+      <rect x="115" y="128" width="156" height="94" rx="38" ry="38" />
+    </clipPath>
+  </defs>
+
+  <style><![CDATA[
+    .stars-mascot {
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+      --ease-sine: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+      overflow: visible;
+    }
+
+    /* Pivot setup for GPU-friendly transforms */
+    .mascot-character,
+    .mascot-head-group,
+    .mascot-body-group,
+    .mascot-headphones-top,
+    .mascot-eye-left,
+    .mascot-eye-right,
+    .mascot-eyes,
+    .mascot-mouth,
+    .mascot-chest-star,
+    .mascot-chest-flame,
+    .mascot-laptop,
+    .mascot-laptop-star,
+    .mascot-screen-glint,
+    .mascot-thinking-dots,
+    .mascot-dot-1,
+    .mascot-dot-2,
+    .mascot-dot-3,
+    .mascot-sound-waves,
+    .mascot-wave-1,
+    .mascot-wave-2,
+    .mascot-sparkles,
+    .mascot-spark-1,
+    .mascot-spark-2,
+    .mascot-spark-3 {
+      transform-box: fill-box;
+      will-change: transform, opacity;
+    }
+
+    .mascot-character {
+      transform-origin: 50% 88%;
+      transition: transform 220ms var(--ease-out);
+    }
+
+    .mascot-head-group {
+      transform-origin: 50% 88%;
+      transition: transform 240ms var(--ease-out);
+    }
+
+    .mascot-body-group {
+      transform-origin: 50% 95%;
+      transition: transform 240ms var(--ease-out);
+    }
+
+    .mascot-eyes {
+      transform-origin: 50% 50%;
+      transition: transform 200ms var(--ease-out);
+    }
+
+    .mascot-eye-left,
+    .mascot-eye-right {
+      transform-origin: 50% 62%;
+    }
+
+    .mascot-mouth {
+      transform-origin: 50% 35%;
+      transition: transform 180ms var(--ease-out);
+    }
+
+    .mascot-chest-star {
+      transform-origin: 50% 50%;
+    }
+
+    .mascot-chest-flame {
+      transform-origin: 50% 65%;
+    }
+
+    .mascot-laptop {
+      transform-origin: 50% 92%;
+      transition: transform 240ms var(--ease-out);
+    }
+
+    .mascot-laptop-star {
+      transform-origin: 50% 50%;
+    }
+
+    /* State-specific overlay ornaments hidden cleanly in default idle state */
+    .mascot-thinking-dots,
+    .mascot-sound-waves,
+    .mascot-sparkles,
+    .mascot-screen-glint {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 200ms var(--ease-out);
+    }
+
+    /* ============================================================
+       1. IDLE STATE (Default — runs automatically in <img> & inline)
+       ============================================================ */
+    .stars-mascot .mascot-body-group,
+    .stars-mascot[data-state="idle"] .mascot-body-group,
+    .stars-mascot.is-idle .mascot-body-group {
+      animation: mascot-idle-breathe 3.8s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot .mascot-head-group,
+    .stars-mascot[data-state="idle"] .mascot-head-group,
+    .stars-mascot.is-idle .mascot-head-group {
+      animation: mascot-idle-head 3.8s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot .mascot-eye-left,
+    .stars-mascot .mascot-eye-right,
+    .stars-mascot[data-state="idle"] .mascot-eye-left,
+    .stars-mascot[data-state="idle"] .mascot-eye-right,
+    .stars-mascot.is-idle .mascot-eye-left,
+    .stars-mascot.is-idle .mascot-eye-right {
+      animation: mascot-blink 4.8s var(--ease-out) infinite;
+    }
+
+    .stars-mascot .mascot-chest-flame,
+    .stars-mascot[data-state="idle"] .mascot-chest-flame,
+    .stars-mascot.is-idle .mascot-chest-flame {
+      animation: mascot-flame-pulse 2.6s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot .mascot-laptop-star,
+    .stars-mascot[data-state="idle"] .mascot-laptop-star,
+    .stars-mascot.is-idle .mascot-laptop-star {
+      animation: mascot-star-glow 3.8s var(--ease-sine) infinite;
+    }
+
+    /* ============================================================
+       2. GREETING / WAVE STATE (Chatbot opens / says Hi!)
+       ============================================================ */
+    .stars-mascot[data-state="greeting"] .mascot-character,
+    .stars-mascot.is-greeting .mascot-character {
+      animation: mascot-greet-bounce 1.6s var(--ease-out) infinite;
+    }
+
+    .stars-mascot[data-state="greeting"] .mascot-head-group,
+    .stars-mascot.is-greeting .mascot-head-group {
+      animation: mascot-greet-tilt 1.6s var(--ease-in-out) infinite;
+    }
+
+    .stars-mascot[data-state="greeting"] .mascot-mouth,
+    .stars-mascot.is-greeting .mascot-mouth {
+      animation: mascot-happy-smile 1.6s var(--ease-out) infinite;
+    }
+
+    .stars-mascot[data-state="greeting"] .mascot-sparkles,
+    .stars-mascot.is-greeting .mascot-sparkles {
+      opacity: 1;
+    }
+
+    .stars-mascot[data-state="greeting"] .mascot-spark-1,
+    .stars-mascot.is-greeting .mascot-spark-1 {
+      animation: mascot-sparkle-float 1.6s var(--ease-out) infinite;
+    }
+
+    .stars-mascot[data-state="greeting"] .mascot-spark-2,
+    .stars-mascot.is-greeting .mascot-spark-2 {
+      animation: mascot-sparkle-float 1.6s var(--ease-out) 0.28s infinite;
+    }
+
+    /* ============================================================
+       3. THINKING STATE (Waiting for AI response)
+       ============================================================ */
+    .stars-mascot[data-state="thinking"] .mascot-head-group,
+    .stars-mascot.is-thinking .mascot-head-group {
+      animation: mascot-think-tilt 2.6s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot[data-state="thinking"] .mascot-eyes,
+    .stars-mascot.is-thinking .mascot-eyes {
+      animation: mascot-think-eyes 2.6s var(--ease-in-out) infinite;
+    }
+
+    .stars-mascot[data-state="thinking"] .mascot-mouth,
+    .stars-mascot.is-thinking .mascot-mouth {
+      transform: scale(0.76, 0.72) translateY(1px);
+    }
+
+    .stars-mascot[data-state="thinking"] .mascot-chest-star,
+    .stars-mascot.is-thinking .mascot-chest-star {
+      animation: mascot-star-think 1.4s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot[data-state="thinking"] .mascot-thinking-dots,
+    .stars-mascot.is-thinking .mascot-thinking-dots {
+      opacity: 1;
+    }
+
+    .stars-mascot[data-state="thinking"] .mascot-dot-1,
+    .stars-mascot.is-thinking .mascot-dot-1 {
+      animation: mascot-dot-wave 1.2s var(--ease-in-out) 0s infinite;
+    }
+
+    .stars-mascot[data-state="thinking"] .mascot-dot-2,
+    .stars-mascot.is-thinking .mascot-dot-2 {
+      animation: mascot-dot-wave 1.2s var(--ease-in-out) 0.16s infinite;
+    }
+
+    .stars-mascot[data-state="thinking"] .mascot-dot-3,
+    .stars-mascot.is-thinking .mascot-dot-3 {
+      animation: mascot-dot-wave 1.2s var(--ease-in-out) 0.32s infinite;
+    }
+
+    /* ============================================================
+       4. TYPING STATE (Streaming / Drafting on laptop)
+       ============================================================ */
+    .stars-mascot[data-state="typing"] .mascot-head-group,
+    .stars-mascot.is-typing .mascot-head-group {
+      animation: mascot-type-head 0.56s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot[data-state="typing"] .mascot-body-group,
+    .stars-mascot.is-typing .mascot-body-group {
+      animation: mascot-type-body 0.56s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot[data-state="typing"] .mascot-eyes,
+    .stars-mascot.is-typing .mascot-eyes {
+      transform: translate(4px, 3px);
+    }
+
+    .stars-mascot[data-state="typing"] .mascot-laptop,
+    .stars-mascot.is-typing .mascot-laptop {
+      animation: mascot-laptop-tap 0.28s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot[data-state="typing"] .mascot-screen-glint,
+    .stars-mascot.is-typing .mascot-screen-glint {
+      opacity: 1;
+      animation: mascot-glint-sweep 1.8s var(--ease-in-out) infinite;
+    }
+
+    /* ============================================================
+       5. TALKING STATE (Responding / Voice output)
+       ============================================================ */
+    .stars-mascot[data-state="talking"] .mascot-head-group,
+    .stars-mascot.is-talking .mascot-head-group {
+      animation: mascot-talk-head 1.1s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot[data-state="talking"] .mascot-mouth,
+    .stars-mascot.is-talking .mascot-mouth {
+      animation: mascot-talk-mouth 0.42s var(--ease-in-out) infinite;
+    }
+
+    .stars-mascot[data-state="talking"] .mascot-chest-flame,
+    .stars-mascot.is-talking .mascot-chest-flame {
+      animation: mascot-flame-pulse 0.9s var(--ease-sine) infinite;
+    }
+
+    /* ============================================================
+       6. LISTENING STATE (User typing / Voice input active)
+       ============================================================ */
+    .stars-mascot[data-state="listening"] .mascot-head-group,
+    .stars-mascot.is-listening .mascot-head-group {
+      animation: mascot-listen-head 2.2s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot[data-state="listening"] .mascot-sound-waves,
+    .stars-mascot.is-listening .mascot-sound-waves {
+      opacity: 1;
+    }
+
+    .stars-mascot[data-state="listening"] .mascot-wave-1,
+    .stars-mascot.is-listening .mascot-wave-1 {
+      animation: mascot-wave-pulse 1.5s var(--ease-out) 0s infinite;
+    }
+
+    .stars-mascot[data-state="listening"] .mascot-wave-2,
+    .stars-mascot.is-listening .mascot-wave-2 {
+      animation: mascot-wave-pulse 1.5s var(--ease-out) 0.35s infinite;
+    }
+
+    /* ============================================================
+       7. HAPPY / CELEBRATE STATE (Booking confirmed / Success)
+       ============================================================ */
+    .stars-mascot[data-state="happy"] .mascot-character,
+    .stars-mascot.is-happy .mascot-character {
+      animation: mascot-happy-hop 1.15s var(--ease-out) infinite;
+    }
+
+    .stars-mascot[data-state="happy"] .mascot-head-group,
+    .stars-mascot.is-happy .mascot-head-group {
+      animation: mascot-happy-head 1.15s var(--ease-sine) infinite;
+    }
+
+    .stars-mascot[data-state="happy"] .mascot-eye-left,
+    .stars-mascot[data-state="happy"] .mascot-eye-right,
+    .stars-mascot.is-happy .mascot-eye-left,
+    .stars-mascot.is-happy .mascot-eye-right {
+      animation: mascot-happy-eyes 1.15s var(--ease-out) infinite;
+    }
+
+    .stars-mascot[data-state="happy"] .mascot-mouth,
+    .stars-mascot.is-happy .mascot-mouth {
+      animation: mascot-happy-smile 1.15s var(--ease-out) infinite;
+    }
+
+    .stars-mascot[data-state="happy"] .mascot-chest-star,
+    .stars-mascot.is-happy .mascot-chest-star {
+      animation: mascot-star-celebrate 1.15s var(--ease-out) infinite;
+    }
+
+    .stars-mascot[data-state="happy"] .mascot-sparkles,
+    .stars-mascot.is-happy .mascot-sparkles {
+      opacity: 1;
+    }
+
+    .stars-mascot[data-state="happy"] .mascot-spark-1,
+    .stars-mascot.is-happy .mascot-spark-1 {
+      animation: mascot-sparkle-float 1.15s var(--ease-out) 0s infinite;
+    }
+
+    .stars-mascot[data-state="happy"] .mascot-spark-2,
+    .stars-mascot.is-happy .mascot-spark-2 {
+      animation: mascot-sparkle-float 1.15s var(--ease-out) 0.18s infinite;
+    }
+
+    .stars-mascot[data-state="happy"] .mascot-spark-3,
+    .stars-mascot.is-happy .mascot-spark-3 {
+      animation: mascot-sparkle-float 1.15s var(--ease-out) 0.36s infinite;
+    }
+
+    /* Pointer-gated subtle interactive hover */
+    @media (hover: hover) and (pointer: fine) {
+      .stars-mascot:hover .mascot-character {
+        transform: translateY(-3px) scale(1.025);
+      }
+    }
+
+    /* ============================================================
+       KEYFRAMES (GPU transform & opacity only)
+       ============================================================ */
+    @keyframes mascot-idle-breathe {
+      0%, 100% {
+        transform: translateY(0px) scaleY(1);
+      }
+      50% {
+        transform: translateY(-2.5px) scaleY(1.012);
+      }
+    }
+
+    @keyframes mascot-idle-head {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-4.5px) rotate(1.3deg);
+      }
+    }
+
+    @keyframes mascot-blink {
+      0%, 44%, 49%, 93%, 98%, 100% {
+        transform: scaleY(1);
+      }
+      46.5% {
+        transform: scaleY(0.12);
+      }
+      95.5% {
+        transform: scaleY(0.12);
+      }
+    }
+
+    @keyframes mascot-flame-pulse {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 0.92;
+      }
+      50% {
+        transform: scale(1.12);
+        opacity: 1;
+      }
+    }
+
+    @keyframes mascot-star-glow {
+      0%, 100% {
+        opacity: 0.94;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.045);
+      }
+    }
+
+    @keyframes mascot-greet-bounce {
+      0%, 100% {
+        transform: translateY(0px) scale(1);
+      }
+      28% {
+        transform: translateY(-8px) scale(1.02);
+      }
+      55% {
+        transform: translateY(0px) scale(0.99, 1.01);
+      }
+      75% {
+        transform: translateY(-4px) scale(1.01);
+      }
+    }
+
+    @keyframes mascot-greet-tilt {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+      22% {
+        transform: translateY(-5px) rotate(-5.5deg);
+      }
+      52% {
+        transform: translateY(-3px) rotate(4.5deg);
+      }
+      78% {
+        transform: translateY(-4px) rotate(-2deg);
+      }
+    }
+
+    @keyframes mascot-think-tilt {
+      0%, 100% {
+        transform: translateY(0px) rotate(3.5deg);
+      }
+      50% {
+        transform: translateY(-4px) rotate(6.5deg);
+      }
+    }
+
+    @keyframes mascot-think-eyes {
+      0%, 100% {
+        transform: translate(4px, -4px);
+      }
+      50% {
+        transform: translate(-3px, -5px);
+      }
+    }
+
+    @keyframes mascot-star-think {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 0.88;
+      }
+      50% {
+        transform: scale(1.12);
+        opacity: 1;
+      }
+    }
+
+    @keyframes mascot-dot-wave {
+      0%, 100% {
+        transform: translateY(0px) scale(0.92);
+        opacity: 0.48;
+      }
+      45% {
+        transform: translateY(-6px) scale(1.08);
+        opacity: 1;
+      }
+    }
+
+    @keyframes mascot-type-head {
+      0%, 100% {
+        transform: translateY(2px) rotate(3deg);
+      }
+      50% {
+        transform: translateY(4.5px) rotate(4.2deg);
+      }
+    }
+
+    @keyframes mascot-type-body {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(1.5px);
+      }
+    }
+
+    @keyframes mascot-laptop-tap {
+      0%, 100% {
+        transform: translateY(0px);
+      }
+      50% {
+        transform: translateY(1px);
+      }
+    }
+
+    @keyframes mascot-glint-sweep {
+      0% {
+        transform: translateX(-120px);
+        opacity: 0;
+      }
+      30% {
+        opacity: 0.9;
+      }
+      70% {
+        opacity: 0.9;
+      }
+      100% {
+        transform: translateX(120px);
+        opacity: 0;
+      }
+    }
+
+    @keyframes mascot-talk-head {
+      0%, 100% {
+        transform: translateY(0px) rotate(-1.5deg);
+      }
+      35% {
+        transform: translateY(-4px) rotate(2deg);
+      }
+      70% {
+        transform: translateY(-1.5px) rotate(-2.5deg);
+      }
+    }
+
+    @keyframes mascot-talk-mouth {
+      0%, 100% {
+        transform: scale(1, 0.82);
+      }
+      35% {
+        transform: scale(0.94, 1.22);
+      }
+      65% {
+        transform: scale(1.05, 0.92);
+      }
+    }
+
+    @keyframes mascot-listen-head {
+      0%, 100% {
+        transform: translateY(-1px) rotate(-4.5deg);
+      }
+      50% {
+        transform: translateY(-3.5px) rotate(-6.5deg);
+      }
+    }
+
+    @keyframes mascot-wave-pulse {
+      0% {
+        transform: translateX(0px) scale(0.92);
+        opacity: 0;
+      }
+      35% {
+        opacity: 0.85;
+      }
+      100% {
+        transform: translateX(-8px) scale(1.1);
+        opacity: 0;
+      }
+    }
+
+    @keyframes mascot-happy-hop {
+      0%, 100% {
+        transform: translateY(0px) scale(1, 1);
+      }
+      18% {
+        transform: translateY(2px) scale(1.03, 0.97);
+      }
+      46% {
+        transform: translateY(-11px) scale(0.98, 1.03);
+      }
+      72% {
+        transform: translateY(0px) scale(1.02, 0.98);
+      }
+      86% {
+        transform: translateY(-4px) scale(1, 1.01);
+      }
+    }
+
+    @keyframes mascot-happy-head {
+      0%, 100% {
+        transform: rotate(0deg);
+      }
+      30% {
+        transform: rotate(-4deg);
+      }
+      65% {
+        transform: rotate(4deg);
+      }
+    }
+
+    @keyframes mascot-happy-eyes {
+      0%, 100% {
+        transform: scale(1, 1);
+      }
+      45% {
+        transform: scale(1.08, 1.12) translateY(-1.5px);
+      }
+    }
+
+    @keyframes mascot-happy-smile {
+      0%, 100% {
+        transform: scale(1, 1);
+      }
+      45% {
+        transform: scale(1.12, 1.14);
+      }
+    }
+
+    @keyframes mascot-star-celebrate {
+      0%, 100% {
+        transform: scale(1) rotate(0deg);
+      }
+      45% {
+        transform: scale(1.18) rotate(8deg);
+      }
+    }
+
+    @keyframes mascot-sparkle-float {
+      0% {
+        transform: translateY(4px) scale(0.9);
+        opacity: 0;
+      }
+      35% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-12px) scale(1.08);
+        opacity: 0;
+      }
+    }
+
+    /* ============================================================
+       REDUCED MOTION (Keep calm opacity feedback, remove movement)
+       ============================================================ */
+    @media (prefers-reduced-motion: reduce) {
+      .stars-mascot *,
+      .stars-mascot *::before,
+      .stars-mascot *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 120ms !important;
+      }
+      .stars-mascot .mascot-character,
+      .stars-mascot .mascot-head-group,
+      .stars-mascot .mascot-body-group,
+      .stars-mascot .mascot-eyes,
+      .stars-mascot .mascot-eye-left,
+      .stars-mascot .mascot-eye-right,
+      .stars-mascot .mascot-mouth,
+      .stars-mascot .mascot-laptop,
+      .stars-mascot .mascot-chest-star {
+        animation: none !important;
+        transform: none !important;
+      }
+      .stars-mascot[data-state="thinking"] .mascot-dot-1,
+      .stars-mascot[data-state="thinking"] .mascot-dot-2,
+      .stars-mascot[data-state="thinking"] .mascot-dot-3,
+      .stars-mascot.is-thinking .mascot-dot-1,
+      .stars-mascot.is-thinking .mascot-dot-2,
+      .stars-mascot.is-thinking .mascot-dot-3 {
+        animation: mascot-reduced-pulse 1.6s ease-in-out infinite !important;
+      }
+      .stars-mascot[data-state="listening"] .mascot-wave-1,
+      .stars-mascot[data-state="listening"] .mascot-wave-2,
+      .stars-mascot.is-listening .mascot-wave-1,
+      .stars-mascot.is-listening .mascot-wave-2 {
+        animation: mascot-reduced-pulse 1.8s ease-in-out infinite !important;
+      }
+      @keyframes mascot-reduced-pulse {
+        0%, 100% { opacity: 0.45; }
+        50% { opacity: 1; }
+      }
+    }
+  ]]></style>
+
+  <!-- ============================================================
+       MAIN MASCOT CHARACTER
+       ============================================================ -->
+  <g class="mascot-character">
+
+    <!-- ==================== TORSO / BODY ==================== -->
+    <g class="mascot-body-group">
+      <!-- White rounded bell-shaped body -->
+      <path
+        d="M 140 258
+           C 110 264 98 298 98 334
+           C 98 353 105 370 118 371
+           L 234 371
+           C 244 370 248 353 248 334
+           C 248 298 236 264 212 258 Z"
+        fill="url(#mascot-body-grad)"
+      />
+      <!-- Soft cool-blush contour shading inside left side of torso -->
+      <g clip-path="url(#mascot-body-clip)">
+        <path
+          d="M 94 256 L 154 256 C 128 286 126 346 156 374 L 94 374 Z"
+          fill="url(#mascot-body-rim)"
+        />
+        <!-- Soft cast shadow under neck collar -->
+        <ellipse cx="176" cy="264" rx="46" ry="9" fill="#c6adb9" opacity="0.45" />
+        <!-- Soft cast shadow on right torso behind laptop -->
+        <path d="M 206 270 C 228 292 232 332 204 374 L 254 374 L 254 270 Z" fill="url(#mascot-body-right-shadow)" />
+      </g>
+      <!-- Body crisp dark outline -->
+      <path
+        d="M 140 258
+           C 110 264 98 298 98 334
+           C 98 353 105 370 118 371
+           L 234 371
+           C 244 370 248 353 248 334
+           C 248 298 236 264 212 258"
+        fill="none"
+        stroke="#3c2a31"
+        stroke-width="3.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+
+      <!-- PUP Chest Star Emblem (plump 5-pointed maroon star with warm gold flame center) -->
+      <g class="mascot-chest-star">
+        <path
+          d="M 188 285
+             L 193.3 295.4
+             L 204.7 297.1
+             L 196.4 305.1
+             L 198.4 316.5
+             L 188 311.1
+             L 177.6 316.5
+             L 179.6 305.1
+             L 171.3 297.1
+             L 182.7 295.4 Z"
+          fill="url(#mascot-chest-star-grad)"
+          stroke="#4c0612"
+          stroke-width="2.1"
+          stroke-linejoin="round"
+        />
+        <!-- Golden flame / torch droplet inside star -->
+        <path
+          class="mascot-chest-flame"
+          d="M 188 296.4
+             C 190.4 300 191.6 302.7 191.6 305.1
+             C 191.6 307.4 190 309.1 188 309.1
+             C 186 309.1 184.4 307.4 184.4 305.1
+             C 184.4 302.7 185.6 300 188 296.4 Z"
+          fill="url(#mascot-flame-grad)"
+        />
+        <ellipse cx="188" cy="305.7" rx="1.4" ry="2.2" fill="#fff7cc" opacity="0.92" />
+      </g>
+
+      <!-- Maroon Neck Collar -->
+      <path
+        d="M 139 249
+           C 155 254 199 254 213 249
+           L 213 261
+           C 198 267 154 267 139 261 Z"
+        fill="url(#mascot-neck-grad)"
+        stroke="#2f0411"
+        stroke-width="2.6"
+        stroke-linejoin="round"
+      />
+    </g>
+
+    <!-- ==================== HEAD + HEADPHONES ==================== -->
+    <g class="mascot-head-group">
+
+      <!-- Listening State Sound Waves (left of earcup, hidden in idle) -->
+      <g class="mascot-sound-waves" fill="none" stroke="#8b0d2c" stroke-linecap="round">
+        <path class="mascot-wave-1" d="M 34 157 C 25 169 25 187 34 199" stroke-width="3.2" />
+        <path class="mascot-wave-2" d="M 23 148 C 11 166 11 190 23 208" stroke-width="2.8" opacity="0.72" />
+      </g>
+
+      <!-- Right Headphone Earcup (behind right cheek) -->
+      <g class="mascot-earcup-right">
+        <ellipse
+          cx="287"
+          cy="177"
+          rx="20"
+          ry="34"
+          transform="rotate(-3 287 177)"
+          fill="url(#mascot-cup-right)"
+          stroke="#310311"
+          stroke-width="3"
+        />
+        <!-- Inner dark cushion seam -->
+        <path
+          d="M 277 145 C 287 158 287 196 276 210"
+          fill="none"
+          stroke="#380313"
+          stroke-width="6.5"
+          stroke-linecap="round"
+        />
+        <!-- Specular rim highlight on right cup -->
+        <path
+          d="M 294 156 C 300 167 300 185 294 196"
+          fill="none"
+          stroke="#c1244d"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          opacity="0.55"
+        />
+      </g>
+
+      <!-- Headband Arch (hugging closely over top of white head) -->
+      <g class="mascot-headphones-top">
+        <path
+          d="M 65 147
+             C 75 91 121 66 178 66
+             C 235 66 280 91 289 147
+             L 276 150
+             C 267 104 228 79 178 79
+             C 129 79 89 104 79 150 Z"
+          fill="url(#mascot-headband-grad)"
+          stroke="#2f0310"
+          stroke-width="2.8"
+          stroke-linejoin="round"
+        />
+        <!-- Soft top highlight along headband curve -->
+        <path
+          d="M 102 99 C 126 79 156 71 184 71 C 216 71 244 82 263 103"
+          fill="none"
+          stroke="#b3244a"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          opacity="0.48"
+        />
+      </g>
+
+      <!-- White Rounded Robot Head -->
+      <g class="mascot-head-shell">
+        <path
+          d="M 178 93
+             C 240 93 284 121 284 172
+             C 284 224 239 255 176 255
+             C 113 255 72 224 72 172
+             C 72 121 116 93 178 93 Z"
+          fill="url(#mascot-head-grad)"
+        />
+        <!-- Soft 3D crescent shading inside head -->
+        <g clip-path="url(#mascot-head-clip)">
+          <path
+            d="M 66 88 L 132 88 C 98 136 96 208 156 246 C 188 258 232 252 278 230 L 278 262 L 66 262 Z"
+            fill="url(#mascot-head-rim)"
+          />
+          <!-- Soft crisp specular top highlight -->
+          <ellipse cx="186" cy="107" rx="52" ry="9" fill="#ffffff" opacity="0.65" />
+        </g>
+        <!-- Head dark outline -->
+        <path
+          d="M 178 93
+             C 240 93 284 121 284 172
+             C 284 224 239 255 176 255
+             C 113 255 72 224 72 172
+             C 72 121 116 93 178 93 Z"
+          fill="none"
+          stroke="#3c2a31"
+          stroke-width="3.2"
+        />
+      </g>
+
+      <!-- Dark Plum Visor / Face Screen -->
+      <g class="mascot-visor">
+        <rect
+          x="115"
+          y="128"
+          width="156"
+          height="94"
+          rx="38"
+          ry="38"
+          fill="url(#mascot-visor-grad)"
+          stroke="#260313"
+          stroke-width="2.4"
+        />
+        <!-- Subtle top inner bevel on visor -->
+        <rect
+          x="119"
+          y="132"
+          width="148"
+          height="86"
+          rx="34"
+          ry="34"
+          fill="none"
+          stroke="#591234"
+          stroke-width="1.4"
+          opacity="0.35"
+        />
+
+        <!-- Typing State Screen Reflection Glint -->
+        <g clip-path="url(#mascot-visor-clip)">
+          <polygon
+            class="mascot-screen-glint"
+            points="135,120 175,120 140,232 100,232"
+            fill="url(#mascot-screen-glint)"
+          />
+        </g>
+
+        <!-- Happy Eyes (Plump Rounded Arches ∩ ∩) -->
+        <g class="mascot-eyes">
+          <!-- Left Eye -->
+          <path
+            class="mascot-eye-left"
+            d="M 146 175.5
+               C 145.5 162.5 152.5 155 161 155
+               C 169.5 155 176.2 162.5 175.5 175.5
+               C 175.1 179.4 170.5 180.2 169 176.4
+               C 167.2 170.6 164.5 167.8 161 167.8
+               C 157.5 167.8 154.6 170.6 152.8 176.4
+               C 151.4 180.2 146.5 179.4 146 175.5 Z"
+            fill="#fdf9fe"
+          />
+          <!-- Right Eye -->
+          <path
+            class="mascot-eye-right"
+            d="M 215 175.5
+               C 214.5 162.5 221.5 155 230 155
+               C 238.5 155 245.2 162.5 244.5 175.5
+               C 244.1 179.4 239.5 180.2 238 176.4
+               C 236.2 170.6 233.5 167.8 230 167.8
+               C 226.5 167.8 223.6 170.6 221.8 176.4
+               C 220.4 180.2 215.5 179.4 215 175.5 Z"
+            fill="#fdf9fe"
+          />
+        </g>
+
+        <!-- Happy Crescent Smile -->
+        <path
+          class="mascot-mouth"
+          d="M 180.5 188.5
+             C 187.5 192.4 203.5 192.4 210.5 188.5
+             C 213.4 186.9 216 189.6 214.3 193.3
+             C 210.8 201.2 203.8 205.5 195.5 205.5
+             C 187.2 205.5 180.2 201.2 176.7 193.3
+             C 175 189.6 177.6 186.9 180.5 188.5 Z"
+          fill="#fdf9fe"
+        />
+      </g>
+
+      <!-- Left Headphone Earcup (foreground 3/4 view) -->
+      <g class="mascot-earcup-left">
+        <!-- Dark burgundy inner cushion resting on head -->
+        <ellipse
+          cx="78"
+          cy="176"
+          rx="18.5"
+          ry="35.5"
+          transform="rotate(-3 78 176)"
+          fill="url(#mascot-cup-cushion)"
+          stroke="#27020e"
+          stroke-width="2.8"
+        />
+        <!-- Outer crimson-maroon shell -->
+        <ellipse
+          cx="63"
+          cy="176.5"
+          rx="20.5"
+          ry="34.5"
+          transform="rotate(-3 63 176.5)"
+          fill="url(#mascot-cup-outer)"
+          stroke="#2d0310"
+          stroke-width="2.8"
+        />
+        <!-- Soft recessed darker oval dimple on outer cup -->
+        <ellipse
+          cx="55.5"
+          cy="177"
+          rx="7.2"
+          ry="15"
+          transform="rotate(-3 55.5 177)"
+          fill="#540319"
+        />
+        <!-- Glossy crescent highlight on outer shell -->
+        <path
+          d="M 65 149 C 72 157 75 171 74 187"
+          fill="none"
+          stroke="#c92954"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          opacity="0.54"
+        />
+      </g>
+
+      <!-- Thinking State Floating Dots (hidden in idle) -->
+      <g class="mascot-thinking-dots">
+        <rect x="284" y="64" width="66" height="28" rx="14" ry="14" fill="#ffffff" stroke="#6f0b23" stroke-width="2.2" />
+        <circle cx="290" cy="98" r="4.5" fill="#ffffff" stroke="#6f0b23" stroke-width="2" />
+        <circle class="mascot-dot-1" cx="303" cy="78" r="3.6" fill="#7c0a26" />
+        <circle class="mascot-dot-2" cx="317" cy="78" r="3.6" fill="#9a1335" />
+        <circle class="mascot-dot-3" cx="331" cy="78" r="3.6" fill="#d48917" />
+      </g>
+
+      <!-- Greeting / Happy Sparkles (hidden in idle) -->
+      <g class="mascot-sparkles">
+        <path
+          class="mascot-spark-1"
+          d="M 316 92 L 319 101 L 328 104 L 319 107 L 316 116 L 313 107 L 304 104 L 313 101 Z"
+          fill="#f5b82e"
+        />
+        <path
+          class="mascot-spark-2"
+          d="M 52 96 L 54.4 102.6 L 61 105 L 54.4 107.4 L 52 114 L 49.6 107.4 L 43 105 L 49.6 102.6 Z"
+          fill="#9e1438"
+        />
+        <path
+          class="mascot-spark-3"
+          d="M 294 64 L 295.8 69.2 L 301 71 L 295.8 72.8 L 294 78 L 292.2 72.8 L 287 71 L 292.2 69.2 Z"
+          fill="#f5b82e"
+        />
+      </g>
+    </g>
+
+    <!-- ==================== MAROON LAPTOP ==================== -->
+    <g class="mascot-laptop">
+      <!-- Horizontal Keyboard Base (extending left from hinge) -->
+      <path
+        d="M 171 358
+           L 372 358
+           C 375 358 377 361 376 365.5
+           C 375 369.5 371 371 366 371
+           L 170 371
+           C 166 371 164 368.2 164 364.5
+           C 164 360.8 167 358 171 358 Z"
+        fill="url(#mascot-laptop-base)"
+        stroke="#2f0310"
+        stroke-width="2.8"
+        stroke-linejoin="round"
+      />
+
+      <!-- Slanted Maroon Laptop Lid (rounded parallelogram) -->
+      <path
+        d="M 268 259
+           L 396 259
+           C 404.5 259 408.5 264.5 406 272.5
+           L 379 359.5
+           C 376.8 366.5 371.2 371 363.8 371
+           L 233 371
+           C 228 371 226 367.5 227.5 362.5
+           L 255 271.5
+           C 257.4 263.8 261.2 259 268 259 Z"
+        fill="url(#mascot-laptop-lid)"
+        stroke="#360413"
+        stroke-width="3"
+        stroke-linejoin="round"
+      />
+
+      <!-- Subtle left edge bevel / depth on laptop lid -->
+      <path
+        d="M 260 272 L 233 361"
+        fill="none"
+        stroke="#490316"
+        stroke-width="2.4"
+        stroke-linecap="round"
+        opacity="0.65"
+      />
+
+      <!-- Subtle top rim catch-light on laptop lid -->
+      <path
+        d="M 269 263 L 395 263"
+        fill="none"
+        stroke="#b02247"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        opacity="0.45"
+      />
+
+      <!-- White 5-Pointed Star Logo on Laptop Back -->
+      <g class="mascot-laptop-star">
+        <path
+          d="M 326.5 298.5
+             L 331.9 308.9
+             L 343.3 310.4
+             L 334.9 318.4
+             L 337.1 329.8
+             L 326.5 324.2
+             L 315.9 329.8
+             L 318.1 318.4
+             L 309.7 310.4
+             L 321.1 308.9 Z"
+          fill="#fdf4f8"
+          stroke="#fdf4f8"
+          stroke-width="3.2"
+          stroke-linejoin="round"
+        />
+      </g>
+    </g>
+  </g>
+</svg>

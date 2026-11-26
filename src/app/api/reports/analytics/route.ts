@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
     peakTimesByService,
     appointmentsByService,
     queueRows,
+    reqTrendRows,
     completedReqs,
     completedIdApps,
     feedbackRows,
@@ -54,7 +55,8 @@ export async function GET(req: NextRequest) {
     prisma.queueEntry.groupBy({ by: ["time"], where: dateWhere, _count: { _all: true }, orderBy: { _count: { time: "desc" } }, take: 8 }),
     prisma.queueEntry.groupBy({ by: ["serviceType", "time"], where: dateWhere, _count: { _all: true }, orderBy: { _count: { time: "desc" } }, take: 24 }),
     prisma.queueEntry.groupBy({ by: ["serviceType"], where: dateWhere, _count: { _all: true }, orderBy: { _count: { serviceType: "desc" } } }),
-    prisma.queueEntry.findMany({ where: dateWhere, select: { status: true, served: true } }),
+    prisma.queueEntry.findMany({ where: dateWhere, select: { status: true, served: true, createdAt: true } }),
+    prisma.serviceRequest.findMany({ where: dateWhere, select: { createdAt: true } }),
     prisma.serviceRequest.findMany({
       where: { ...(dateWhere || {}), status: "Completed" },
       select: { createdAt: true, pickedUpAt: true, updatedAt: true },
@@ -107,11 +109,18 @@ export async function GET(req: NextRequest) {
     ? Math.round((turnaroundHours.reduce((a, b) => a + b, 0) / turnaroundHours.length) * 10) / 10
     : null;
 
+  // Activity trend series (daily if span <= 45d, otherwise monthly)
+  const trend = buildActivityTrend(
+    queueRows.map((r) => r.createdAt),
+    reqTrendRows.map((r) => r.createdAt)
+  );
+
   // CSAT metrics
   const csat = await buildCsatSummary(feedbackRows);
 
   return NextResponse.json({
     range: { from, to },
+    trend,
     byCourse: byCourse.map((r) => ({ label: r.course || "Not set", count: r._count._all })),
     byYear: byYear.map((r) => ({ label: r.year || "Not set", count: r._count._all })),
     services: services.map((r) => ({ label: serviceLabel(r.serviceType), count: r._count._all })),
@@ -136,34 +145,76 @@ export async function GET(req: NextRequest) {
   });
 }
 
+function buildActivityTrend(apptDates: Date[], reqDates: Date[]) {
+  const all = [...apptDates, ...reqDates].sort((a, b) => a.getTime() - b.getTime());
+  if (!all.length) return [];
+  const spanDays = (all[all.length - 1].getTime() - all[0].getTime()) / 86_400_000;
+  const byMonth = spanDays > 45;
+  const keyOf = (d: Date) => {
+    const iso = d.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+    return byMonth ? iso.slice(0, 7) : iso;
+  };
+  const labelOf = (k: string) => {
+    if (byMonth) {
+      const dt = new Date(`${k}-01T12:00:00+08:00`);
+      return Number.isNaN(dt.getTime()) ? k : dt.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    }
+    const dt = new Date(`${k}T12:00:00+08:00`);
+    return Number.isNaN(dt.getTime()) ? k : dt.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+  const buckets = new Map<string, { appointments: number; requests: number }>();
+  for (const d of apptDates) {
+    const k = keyOf(d);
+    const cur = buckets.get(k) || { appointments: 0, requests: 0 };
+    cur.appointments += 1;
+    buckets.set(k, cur);
+  }
+  for (const d of reqDates) {
+    const k = keyOf(d);
+    const cur = buckets.get(k) || { appointments: 0, requests: 0 };
+    cur.requests += 1;
+    buckets.set(k, cur);
+  }
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-14)
+    .map(([k, v]) => ({ key: k, label: labelOf(k), appointments: v.appointments, requests: v.requests }));
+}
+
 async function buildCsatSummary(
   rows: Array<{ id: string; requestId: string; studentId: string; rating: number; comment: string; createdAt: Date }>
 ) {
   const ids = rows.map((r) => r.requestId);
   const svcMap = new Map<string, string>();
   if (ids.length) {
-    const [appts, reqs, idapps, evts, refs] = await Promise.all([
+    const [appts, reqs, idapps, evts, refs, tickets] = await Promise.all([
       prisma.queueEntry.findMany({ where: { code: { in: ids } }, select: { code: true, serviceType: true } }),
       prisma.serviceRequest.findMany({ where: { id: { in: ids } }, select: { id: true, service: true } }),
       prisma.idApplication.findMany({ where: { id: { in: ids } }, select: { id: true, type: true } }),
       prisma.eventRequest.findMany({ where: { id: { in: ids } }, select: { id: true } }),
       prisma.referral.findMany({ where: { id: { in: ids } }, select: { id: true } }),
+      prisma.ticket.findMany({ where: { id: { in: ids } }, select: { id: true, category: true } }),
     ]);
     for (const a of appts) svcMap.set(a.code, serviceLabel(a.serviceType));
     for (const r of reqs) svcMap.set(r.id, requestServiceLabel(r.service));
     for (const i of idapps) svcMap.set(i.id, i.type || "ID Application");
     for (const e of evts) svcMap.set(e.id, "Event Request");
     for (const r of refs) svcMap.set(r.id, "Referral & Intervention");
+    for (const t of tickets) svcMap.set(t.id, t.category ? `Help Desk · ${t.category}` : "Help Desk Ticket");
   }
 
   const total = rows.length;
   const dist: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
   const bySvc = new Map<string, { sum: number; count: number }>();
   let sum = 0;
+  let positiveCount = 0;
+  let commentCount = 0;
 
   for (const r of rows) {
     const star = Math.min(5, Math.max(1, r.rating));
     sum += star;
+    if (star >= 4) positiveCount += 1;
+    if (r.comment && r.comment.trim()) commentCount += 1;
     dist[star] = (dist[star] || 0) + 1;
     const label = svcMap.get(r.requestId) || "SSO Service";
     const cur = bySvc.get(label) || { sum: 0, count: 0 };
@@ -175,6 +226,8 @@ async function buildCsatSummary(
   return {
     total,
     average: total ? Math.round((sum / total) * 100) / 100 : 0,
+    positiveRate: total ? Math.round((positiveCount / total) * 100) : 0,
+    commentCount,
     distribution: [5, 4, 3, 2, 1].map((star) => ({ star, label: `${star} ★`, count: dist[star] || 0 })),
     byService: [...bySvc.entries()]
       .map(([label, v]) => ({
@@ -183,7 +236,7 @@ async function buildCsatSummary(
         count: v.count,
       }))
       .sort((a, b) => b.count - a.count),
-    recent: rows.slice(0, 8).map((r) => ({
+    recent: rows.slice(0, 60).map((r) => ({
       requestId: r.requestId,
       studentId: r.studentId,
       serviceLabel: svcMap.get(r.requestId) || "SSO Service",

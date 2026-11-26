@@ -1,15 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, jsonError } from "@/lib/http";
+import { archiveWhere } from "@/lib/archive";
 import { addAudit, addNotification } from "@/lib/notify";
 import { genId, fnow, withTs, withTsList } from "@/lib/format";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireSession();
   if (auth instanceof NextResponse) return auth;
-  const where = auth.role === "admin" || auth.role === "super_admin" ? {} : { sn: auth.studentId || "" };
+  const where = { ...(auth.role === "admin" || auth.role === "super_admin" ? {} : { sn: auth.studentId || "" }), ...archiveWhere(req) };
   const rows = await prisma.ticket.findMany({ where, orderBy: { createdAt: "asc" } });
-  return NextResponse.json(withTsList(rows));
+  const ids = rows.map((r) => r.id);
+  const fbRows = ids.length
+    ? await prisma.serviceFeedback.findMany({
+        where: { requestId: { in: ids } },
+        select: { id: true, requestId: true, rating: true, comment: true, createdAt: true },
+      })
+    : [];
+  const fbById = new Map(
+    fbRows.map((fb) => [
+      fb.requestId,
+      {
+        id: fb.id,
+        requestId: fb.requestId,
+        rating: fb.rating,
+        comment: fb.comment,
+        ts: fnow(fb.createdAt),
+      },
+    ])
+  );
+  return NextResponse.json(
+    withTsList(rows).map((t) => ({
+      ...t,
+      feedback: fbById.get(t.id) || null,
+    }))
+  );
 }
 
 

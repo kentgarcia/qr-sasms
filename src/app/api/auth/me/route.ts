@@ -16,5 +16,10 @@ export async function GET() {
     return NextResponse.json({ user: null });
   }
 
-  return NextResponse.json({ user: toClientUser(user) });
+  let current = user;
+  if (user.role === "STUDENT" && !user.verified && user.studentId) {
+    const { autoVerifyFromMasterlist } = await import("@/lib/verification");
+    if (await autoVerifyFromMasterlist(user.studentId)) current = { ...user, verified: true };
+  }
+  return NextResponse.json({ user: toClientUser(current) });
 }

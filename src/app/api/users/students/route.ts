@@ -14,7 +14,7 @@ export async function GET() {
   const rows = await prisma.user.findMany({
     where: { role: "STUDENT" },
     orderBy: { createdAt: "desc" },
-    select: { id: true, studentId: true, name: true, email: true, course: true, year: true, active: true, approved: true, createdAt: true },
+    select: { id: true, studentId: true, name: true, email: true, course: true, year: true, active: true, approved: true, verified: true, verifiedAt: true, verifiedBy: true, createdAt: true },
   });
   // Link each student account to its masterlist record (by student number).
   const sns = [...new Set(rows.map((u) => (u.studentId || "").trim().toUpperCase()).filter(Boolean))];

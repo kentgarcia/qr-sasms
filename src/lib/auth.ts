@@ -82,6 +82,7 @@ export function toClientUser(u: {
   course?: string | null;
   year?: string | null;
   approved?: boolean;
+  verified?: boolean;
 }) {
   return {
     id: u.studentId || u.email,
@@ -90,6 +91,7 @@ export function toClientUser(u: {
     role: u.role.toLowerCase(),
     course: u.course || undefined,
     year: u.year || undefined,
+    verified: u.role.toLowerCase() === "student" ? u.verified !== false : undefined,
   };
 }
 

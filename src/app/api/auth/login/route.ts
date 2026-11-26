@@ -43,6 +43,12 @@ export async function POST(req: NextRequest) {
     return jsonError(403, "Your account is awaiting SSO admin approval.", "NOT_APPROVED");
   }
 
+  let account = resolved;
+  if (resolved.role === "STUDENT" && !resolved.verified && resolved.studentId) {
+    const { autoVerifyFromMasterlist } = await import("@/lib/verification");
+    if (await autoVerifyFromMasterlist(resolved.studentId)) account = { ...resolved, verified: true };
+  }
+
   await setSessionCookie({
     uid: resolved.id,
     studentId: resolved.studentId,
@@ -54,5 +60,5 @@ export async function POST(req: NextRequest) {
 
   await addAudit("INFO", `${resolved.name} signed in successfully.`);
 
-  return NextResponse.json({ user: toClientUser(resolved) });
+  return NextResponse.json({ user: toClientUser(account) });
 }
